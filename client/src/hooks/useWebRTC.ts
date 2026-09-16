@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef } from 'react';
 
 const ICE_SERVERS = {
   iceServers: [
@@ -8,17 +8,23 @@ const ICE_SERVERS = {
 };
 
 export function useWebRTC(
-  sendSignalingMessage: (event: string, payload: any) => void
+  sendSignalingMessage: (event: string, payload: any) => void,
+  onCallLogged?: (data: { duration: number, status: string, type: 'video' | 'audio' }) => void
 ) {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
+  
+  const peerConnectionsRef = useRef<Record<string, RTCPeerConnection>>({});
+  
   const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'ringing' | 'connected'>('idle');
   const [callType, setCallType] = useState<'video' | 'audio'>('video');
-  const [incomingCallData, setIncomingCallData] = useState<{ caller_id: string, caller_name: string, offer?: RTCSessionDescriptionInit, type: 'video' | 'audio' } | null>(null);
+  const [incomingCallData, setIncomingCallData] = useState<{ caller_id: string, caller_name: string, type: 'video' | 'audio', is_group?: boolean } | null>(null);
 
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+
+  const [isCaller, setIsCaller] = useState(false);
+  const callStartTimeRef = useRef<number | null>(null);
 
   const startLocalStream = async (type: 'video' | 'audio') => {
     try {
@@ -31,9 +37,13 @@ export function useWebRTC(
     }
   };
 
-  const initPeerConnection = useCallback((stream: MediaStream) => {
+  const initPeerConnection = (targetId: string, stream: MediaStream) => {
+    if (peerConnectionsRef.current[targetId]) {
+      peerConnectionsRef.current[targetId].close();
+    }
+    
     const pc = new RTCPeerConnection(ICE_SERVERS);
-    peerConnectionRef.current = pc;
+    peerConnectionsRef.current[targetId] = pc;
 
     stream.getTracks().forEach((track) => {
       pc.addTrack(track, stream);
@@ -41,61 +51,77 @@ export function useWebRTC(
 
     pc.ontrack = (event) => {
       if (event.streams && event.streams[0]) {
-        setRemoteStream(event.streams[0]);
+        setRemoteStreams(prev => ({ ...prev, [targetId]: event.streams[0] }));
       }
     };
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        sendSignalingMessage('ice_candidate', { candidate: event.candidate });
+        sendSignalingMessage('ice_candidate', { target_id: targetId, candidate: event.candidate });
       }
     };
 
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-        endCall();
+        setRemoteStreams(prev => {
+          const next = { ...prev };
+          delete next[targetId];
+          return next;
+        });
+        delete peerConnectionsRef.current[targetId];
+        
+        // If no more connections, end call
+        if (Object.keys(peerConnectionsRef.current).length === 0 && callStatus === 'connected') {
+          endCall();
+        }
       }
     };
 
     return pc;
-  }, [sendSignalingMessage]);
+  };
 
-  const initiateCall = async (callerName: string, type: 'video' | 'audio' = 'video') => {
+  // 1. Someone initiates a call
+  const initiateCall = async (callerName: string, type: 'video' | 'audio' = 'video', isGroup: boolean = false) => {
     try {
+      setIsCaller(true);
       setCallType(type);
-      const stream = await startLocalStream(type);
-      const pc = initPeerConnection(stream);
+      await startLocalStream(type);
+      setCallStatus(isGroup ? 'connected' : 'calling');
       
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      
-      sendSignalingMessage('call_offer', { offer, caller_name: callerName, type });
-      setCallStatus('calling');
+      // Tell everyone in the room we started a call / joined
+      sendSignalingMessage('peer_join', { caller_name: callerName, type, is_group: isGroup });
     } catch (err) {
       console.error('Failed to initiate call', err);
       endCall();
     }
   };
 
-  const handleReceiveOffer = async (offer: RTCSessionDescriptionInit, caller_id: string, caller_name: string, type: 'video' | 'audio' = 'video') => {
-    if (callStatus !== 'idle') return; // Busy
-    setCallType(type);
-    setIncomingCallData({ caller_id, caller_name, offer, type });
-    setCallStatus('ringing');
+  // 2. Others receive peer_join
+  const handlePeerJoin = async (sender_id: string, caller_name: string, type: 'video' | 'audio', is_group: boolean) => {
+    if (callStatus === 'idle') {
+      // Prompt user to join
+      setCallType(type);
+      setIncomingCallData({ caller_id: sender_id, caller_name, type, is_group });
+      setCallStatus('ringing');
+    } else if (callStatus === 'connected' && localStream) {
+      // We are already in the call, someone new joined!
+      // We must create an offer for them.
+      const pc = initPeerConnection(sender_id, localStream);
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      sendSignalingMessage('call_offer', { target_id: sender_id, offer, type });
+    }
   };
 
-  const acceptCall = async (offer: RTCSessionDescriptionInit) => {
+  // 3. User accepts the incoming call prompt
+  const acceptCall = async () => {
     try {
       const type = incomingCallData?.type || 'video';
-      const stream = await startLocalStream(type);
-      const pc = initPeerConnection(stream);
-      
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      
-      sendSignalingMessage('call_answer', { answer });
+      await startLocalStream(type);
       setCallStatus('connected');
+      
+      // Tell the person who invited us (and others) that we joined
+      sendSignalingMessage('peer_join', { caller_name: incomingCallData?.caller_name, type, is_group: incomingCallData?.is_group });
       setIncomingCallData(null);
     } catch (err) {
       console.error('Failed to accept call', err);
@@ -103,19 +129,35 @@ export function useWebRTC(
     }
   };
 
-  const handleReceiveAnswer = async (answer: RTCSessionDescriptionInit) => {
-    const pc = peerConnectionRef.current;
+  // 4. New user receives offers from existing users
+  const handleReceiveOffer = async (offer: RTCSessionDescriptionInit, sender_id: string) => {
+    if (callStatus !== 'connected' || !localStream) return;
+    try {
+      const pc = initPeerConnection(sender_id, localStream);
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      sendSignalingMessage('call_answer', { target_id: sender_id, answer });
+    } catch (e) {
+      console.error('Failed to handle offer', e);
+    }
+  };
+
+  // 5. Existing user receives answer from new user
+  const handleReceiveAnswer = async (answer: RTCSessionDescriptionInit, sender_id: string) => {
+    const pc = peerConnectionsRef.current[sender_id];
     if (!pc) return;
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(answer));
-      setCallStatus('connected');
+      if (!callStartTimeRef.current) callStartTimeRef.current = Date.now();
     } catch (e) {
       console.error('Failed to set remote description on answer', e);
     }
   };
 
-  const handleReceiveIceCandidate = async (candidate: RTCIceCandidateInit) => {
-    const pc = peerConnectionRef.current;
+  // 6. ICE candidates exchange
+  const handleReceiveIceCandidate = async (candidate: RTCIceCandidateInit, sender_id: string) => {
+    const pc = peerConnectionsRef.current[sender_id];
     if (!pc) return;
     try {
       await pc.addIceCandidate(new RTCIceCandidate(candidate));
@@ -125,8 +167,24 @@ export function useWebRTC(
   };
 
   const endCall = () => {
-    sendSignalingMessage('call_end', {});
+    sendSignalingMessage('peer_leave', {});
     cleanup();
+  };
+
+  const handlePeerLeave = (sender_id: string) => {
+    if (peerConnectionsRef.current[sender_id]) {
+      peerConnectionsRef.current[sender_id].close();
+      delete peerConnectionsRef.current[sender_id];
+    }
+    setRemoteStreams(prev => {
+      const next = { ...prev };
+      delete next[sender_id];
+      return next;
+    });
+    
+    if (Object.keys(peerConnectionsRef.current).length === 0 && callStatus === 'connected') {
+      // endCall(); // Optional: end call if everyone leaves, but we might want to wait alone in a group.
+    }
   };
 
   const toggleAudio = () => {
@@ -150,24 +208,42 @@ export function useWebRTC(
   };
 
   const cleanup = () => {
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
+    if (isCaller && callStatus !== 'idle') {
+      let duration = 0;
+      let status = 'missed';
+      
+      if (callStatus === 'connected' && callStartTimeRef.current) {
+        duration = Math.floor((Date.now() - callStartTimeRef.current) / 1000);
+        status = 'answered';
+      } else if (callStatus === 'calling' || callStatus === 'ringing') {
+        status = 'missed'; // or declined
+      }
+      
+      if (onCallLogged) {
+        onCallLogged({ duration, status, type: callType });
+      }
     }
+
+    Object.values(peerConnectionsRef.current).forEach(pc => pc.close());
+    peerConnectionsRef.current = {};
+    
     if (localStream) {
       localStream.getTracks().forEach(track => track.stop());
       setLocalStream(null);
     }
-    setRemoteStream(null);
+    
+    setRemoteStreams({});
     setCallStatus('idle');
     setIncomingCallData(null);
     setIsMuted(false);
     setIsVideoOff(false);
+    setIsCaller(false);
+    callStartTimeRef.current = null;
   };
 
   return {
     localStream,
-    remoteStream,
+    remoteStreams,
     callStatus,
     callType,
     incomingCallData,
@@ -175,9 +251,11 @@ export function useWebRTC(
     isVideoOff,
     initiateCall,
     acceptCall,
+    handlePeerJoin,
     handleReceiveOffer,
     handleReceiveAnswer,
     handleReceiveIceCandidate,
+    handlePeerLeave,
     endCall,
     cleanup,
     toggleAudio,

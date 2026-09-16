@@ -21,6 +21,10 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
     
     const { data: profile } = await supabaseAdmin.from('users').select('*').eq('id', user.id).single();
     
+    if (profile && (profile.account_status === 'suspended' || profile.account_status === 'banned')) {
+      return res.status(403).json({ success: false, error: { code: 'ACCOUNT_BLOCKED', message: `Your account is ${profile.account_status}` } });
+    }
+
     req.user = { ...user, profile };
     next();
   } catch (err) {

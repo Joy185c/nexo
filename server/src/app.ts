@@ -18,15 +18,28 @@ app.use(cors({
 app.use(express.json());
 
 import userRoutes from './routes/users';
-import chatsRoutes from './routes/chats';
-import messagesRoutes from './routes/messages';
+import chatsRouter from './routes/chats';
+import messagesRouter from './routes/messages';
+import callsRouter from './routes/calls';
+import friendsRouter from './routes/friends';
+import moodsRouter from './routes/moods';
+import adminRouter from './routes/admin';
 import rateLimit from 'express-rate-limit';
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
-  max: 100, 
+  max: 1000, // Increased for development/testing
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({
+      success: false,
+      error: {
+        code: 'TOO_MANY_REQUESTS',
+        message: 'Too many requests, please try again later.'
+      }
+    });
+  }
 });
 
 app.use('/api', apiLimiter);
@@ -36,8 +49,12 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/users', userRoutes);
-app.use('/api/chats', chatsRoutes);
-app.use('/api/messages', messagesRoutes);
+app.use('/api/chats', chatsRouter);
+app.use('/api/messages', messagesRouter);
+app.use('/api/calls', callsRouter);
+app.use('/api/friends', friendsRouter);
+app.use('/api/moods', moodsRouter);
+app.use('/api/admin', adminRouter);
 
 // Centralized error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

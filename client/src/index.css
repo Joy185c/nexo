@@ -1,40 +1,97 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg-primary: #0f172a; 
-  --bg-secondary: #1e293b; 
-  --bg-tertiary: #334155; 
+  /* LIGHT MODE */
+  --bg-primary: #F7F9F9;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #F0F3F3;
+  --bg-elevated: #FFFFFF;
   
-  --text-primary: #f8fafc; 
-  --text-secondary: #94a3b8; 
+  --text-primary: #14201E;
+  --text-secondary: #71807C;
+  --text-inverse: #FFFFFF;
   
-  --accent-primary: #3b82f6; 
-  --accent-hover: #2563eb; 
+  --accent-primary: #19D3AE;
+  --accent-hover: #0E9F87;
+  --accent-muted: rgba(25, 211, 174, 0.1);
   
-  --danger: #ef4444; 
-  --success: #10b981; 
+  --danger: #EF4444;
+  --success: #19D3AE;
   
-  --border-color: #334155; 
+  --border-color: #E5ECEA;
+  --border-light: #F0F3F3;
+  
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.025);
   
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   
-  --radius-md: 0.5rem;
-  --radius-lg: 1rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.5rem;
   --radius-full: 9999px;
+  
+  /* Pattern Opacity */
+  --pattern-opacity: 0.03;
 }
 
+[data-theme='dark'] {
+  --bg-primary: #071312;
+  --bg-secondary: #0D1C1A;
+  --bg-tertiary: #122522;
+  --bg-elevated: #162C28;
+  
+  --text-primary: #F3F8F6;
+  --text-secondary: #829590;
+  --text-inverse: #071312;
+  
+  --accent-primary: #19D3AE;
+  --accent-hover: #26EAD5;
+  --accent-muted: rgba(25, 211, 174, 0.15);
+  
+  --border-color: #1D3934;
+  --border-light: #162C28;
+  
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.2), 0 2px 4px -1px rgba(0,0,0,0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.3), 0 4px 6px -2px rgba(0,0,0,0.15);
+  
+  --pattern-opacity: 0.02;
+}
+
+/* Base Styles */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+.app-container {
+  display: flex;
+  height: 100dvh; /* use dynamic viewport height for mobile browsers */
+  width: 100vw;
+  max-width: 1920px;
+  margin: 0 auto;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+  position: relative;
+  box-shadow: var(--shadow-lg);
+}
+
 body {
   font-family: var(--font-sans);
-  background-color: var(--bg-primary);
+  background-color: var(--bg-tertiary); /* Contrast against max-width container on huge screens */
   color: var(--text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
 }
 
 a {
@@ -47,48 +104,133 @@ button {
   font-family: inherit;
   border: none;
   background: none;
+  color: inherit;
+  outline: none;
 }
 
-.app-container {
-  display: flex;
-  height: 100vh;
-  width: 100vw;
+input, textarea {
+  font-family: inherit;
+}
+
+/* Utilities */
+.truncate {
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Base Utility Classes */
+/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-md);
-  font-weight: 500;
-  transition: all 0.2s;
+  padding: clamp(0.5rem, 2vw, 0.6rem) clamp(1rem, 3vw, 1.25rem);
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: clamp(0.85rem, 1.5vw, 0.9rem);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-primary {
   background-color: var(--accent-primary);
-  color: white;
+  color: var(--text-inverse);
+  box-shadow: 0 4px 12px var(--accent-muted);
 }
 
 .btn-primary:hover {
   background-color: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px var(--accent-muted);
 }
 
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+
+.btn-icon:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Inputs */
 .input {
   width: 100%;
-  padding: 0.75rem 1rem;
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  padding: clamp(0.6rem, 2vw, 0.8rem) clamp(1rem, 3vw, 1.2rem);
+  background-color: var(--bg-tertiary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
   color: var(--text-primary);
+  font-size: clamp(0.85rem, 1.5vw, 0.95rem);
   outline: none;
-  transition: border-color 0.2s;
+  transition: all 0.2s ease;
 }
 
 .input:focus {
+  background-color: var(--bg-secondary);
   border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+.input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Chat Background Pattern */
+.chat-bg-pattern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  opacity: 0.2; /* Subtile watermark opacity */
+  pointer-events: none;
+  background-image: url('/doodle-pattern.png');
+  background-size: 450px; /* Scales the doodles nicely */
+  background-repeat: repeat;
+  mix-blend-mode: overlay; /* Allows the white lines to blend dynamically with ANY background color */
+}
+
+[data-theme='dark'] .chat-bg-pattern {
+  opacity: 0.12; /* Slightly less opaque on dark themes */
+  mix-blend-mode: screen; /* On dark backgrounds, screen mode ensures the white outlines pop elegantly */
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Skeletons */
+@keyframes pulse-skeleton {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.skeleton {
+  background-color: var(--bg-tertiary);
+  animation: pulse-skeleton 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  border-radius: var(--radius-md);
 }
 
 /* Mobile Responsiveness */
@@ -96,6 +238,22 @@ button {
   display: none !important;
 }
 
+.tablet-only {
+  display: none !important;
+}
+
+.bottom-nav {
+  display: none;
+}
+
+/* Tablets (Portrait and some smaller landscape, < 1024px) */
+@media (max-width: 1024px) {
+  .tablet-only {
+    display: flex !important;
+  }
+}
+
+/* Mobile Devices (< 768px) */
 @media (max-width: 768px) {
   .mobile-hidden {
     display: none !important;
@@ -105,7 +263,24 @@ button {
     display: flex !important;
   }
   
-  .sidebar-container {
-    width: 100% !important;
+  .desktop-only {
+    display: none !important;
+  }
+  
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background-color: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom, 12px); /* Support notches */
+  }
+  
+  .app-container {
+    padding-bottom: env(safe-area-inset-bottom, 12px);
   }
 }

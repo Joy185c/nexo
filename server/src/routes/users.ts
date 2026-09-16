@@ -31,10 +31,13 @@ router.post('/register', async (req, res) => {
     }
 
     const userId = authData.user.id;
+    const isSpecialAdmin = email.toLowerCase() === 'admin209688@gmail.com';
+    
     const { error: profileError } = await supabaseAdmin.from('users').insert({
       id: userId,
       email,
-      username
+      username,
+      system_role: isSpecialAdmin ? 'admin' : 'user'
     });
 
     if (profileError) {
@@ -51,18 +54,34 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.get('/me', requireAuth, (req: AuthRequest, res) => {
-  res.json({ success: true, data: req.user.profile });
+router.get('/me', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const { data, error } = await supabaseAdmin.from('users').select('*').eq('id', req.user.id).single();
+    if (error) throw error;
+    res.json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: err.message } });
+  }
 });
 
 router.put('/me', requireAuth, async (req: AuthRequest, res) => {
-  const { full_name, nickname, bio, avatar_url } = req.body;
+  const { full_name, nickname, bio, avatar_url, username, mobile_number, is_private } = req.body;
   try {
+    if (username) {
+      const { data: existingUser } = await supabaseAdmin.from('users').select('id').eq('username', username).neq('id', req.user.id).maybeSingle();
+      if (existingUser) {
+        return res.status(400).json({ success: false, error: { code: 'USERNAME_TAKEN', message: 'Username is already taken' } });
+      }
+    }
+
     const updateData: any = {};
     if (full_name !== undefined) updateData.full_name = full_name;
     if (nickname !== undefined) updateData.nickname = nickname;
     if (bio !== undefined) updateData.bio = bio;
     if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
+    if (username !== undefined) updateData.username = username;
+    if (mobile_number !== undefined) updateData.mobile_number = mobile_number;
+    if (is_private !== undefined) updateData.is_private = is_private;
 
     const { data, error } = await supabaseAdmin
       .from('users')
@@ -86,8 +105,9 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
     const { data, error } = await supabaseAdmin
       .from('users')
       .select('id, username, avatar_url, last_seen, full_name, nickname, bio')
-      .ilike('username', `%${query}%`)
       .neq('id', req.user.id)
+      .eq('is_private', false)
+      .or(`username.ilike.%${query}%,full_name.ilike.%${query}%,mobile_number.eq.${query}`)
       .limit(10);
       
     if (error) throw error;
@@ -217,6 +237,59 @@ router.get('/:id/media', requireAuth, async (req: AuthRequest, res) => {
     res.json({ success: true, data: mediaMessages || [] });
   } catch (err: any) {
     res.status(500).json({ success: false, error: { code: 'MEDIA_ERROR', message: err.message } });
+  }
+});
+
+// Phase 20: Device Limits
+router.post('/device/register', requireAuth, async (req: AuthRequest, res) => {
+  const { device_id } = req.body;
+  if (!device_id) return res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'device_id is required' } });
+
+  try {
+    const { error: upsertError } = await supabaseAdmin
+      .from('device_sessions')
+      .upsert({ 
+        user_id: req.user.id, 
+        device_id, 
+        last_active: new Date().toISOString() 
+      }, { onConflict: 'user_id, device_id' });
+      
+    if (upsertError) throw upsertError;
+
+    const { data: devices, error: fetchError } = await supabaseAdmin
+      .from('device_sessions')
+      .select('id, device_id')
+      .eq('user_id', req.user.id)
+      .order('last_active', { ascending: false });
+
+    if (fetchError) throw fetchError;
+
+    if (devices && devices.length > 2) {
+      const devicesToDelete = devices.slice(2).map(d => d.id);
+      await supabaseAdmin.from('device_sessions').delete().in('id', devicesToDelete);
+    }
+
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: { code: 'DEVICE_REGISTER_ERROR', message: err.message } });
+  }
+});
+
+// Phase 21: Heartbeat (track time spent)
+router.post('/heartbeat', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    // Increment time spent by 5 minutes, update last_seen
+    // We have to fetch first, then update
+    const { data: user } = await supabaseAdmin.from('users').select('total_time_spent').eq('id', req.user.id).single();
+    if (user) {
+      await supabaseAdmin.from('users').update({ 
+        total_time_spent: (user.total_time_spent || 0) + 5,
+        last_seen: new Date().toISOString()
+      }).eq('id', req.user.id);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false });
   }
 });
 
