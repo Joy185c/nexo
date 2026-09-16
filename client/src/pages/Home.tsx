@@ -10,7 +10,6 @@ export default function Home() {
   const [doodlesEnabled, setDoodlesEnabled] = useState(localStorage.getItem('nexo_wallpaper_doodles') !== 'false');
   const [wallpaperImage, setWallpaperImage] = useState(localStorage.getItem('nexo_wallpaper_image') || '');
   const [wallpaperOpacity, setWallpaperOpacity] = useState(parseInt(localStorage.getItem('nexo_wallpaper_opacity') || '100', 10));
-  const [wallpaperTick, setWallpaperTick] = useState(0); // Used to force re-render for chat-specific settings
 
   useEffect(() => {
     const handleWallpaperChange = () => {
@@ -18,7 +17,7 @@ export default function Home() {
       setDoodlesEnabled(localStorage.getItem('nexo_wallpaper_doodles') !== 'false');
       setWallpaperImage(localStorage.getItem('nexo_wallpaper_image') || '');
       setWallpaperOpacity(parseInt(localStorage.getItem('nexo_wallpaper_opacity') || '100', 10));
-      setWallpaperTick(prev => prev + 1);
+
     };
     window.addEventListener('wallpaper_changed', handleWallpaperChange);
     return () => window.removeEventListener('wallpaper_changed', handleWallpaperChange);

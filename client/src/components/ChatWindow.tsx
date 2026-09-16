@@ -484,7 +484,7 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
           onUpdate={(updates?: any) => {
             if (updates) {
               Object.assign(chat, updates);
-              setForceRender(prev => prev + 1); 
+
             }
             window.dispatchEvent(new Event('chat_updated')); 
           }} 
