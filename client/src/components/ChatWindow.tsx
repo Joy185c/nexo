@@ -41,7 +41,7 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
   const touchStartX = useRef<number | null>(null);
 
   const [showGroupModal, setShowGroupModal] = useState(false);
-  const [forceRender, setForceRender] = useState(0); // Add a simple trigger to force re-render when chat mutates
+
   
   const getDisplayName = (userId: string, defaultName: string) => {
     const contact = contacts.find(c => c.contact_id === userId);

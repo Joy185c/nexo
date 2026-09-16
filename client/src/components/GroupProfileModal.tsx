@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Camera, Edit2, Shield, UserMinus, UserPlus, LogOut, Check, Image as ImageIcon, Users, Settings } from 'lucide-react';
+import { X, Camera, Edit2, Shield, UserMinus, UserPlus, LogOut, Check, Image as ImageIcon } from 'lucide-react';
 import { updateGroup, addMember, removeMember, updateRole, getFriends } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';

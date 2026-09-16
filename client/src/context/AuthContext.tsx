@@ -53,7 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fetchProfile();
         fetchPreferences();
         fetchFriends();
-        initDeviceSession(session.user.id);
+        initDeviceSession();
         setupPresence(session.user.id);
       } else {
         setUser(null);
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fetchProfile();
         fetchPreferences();
         fetchFriends();
-        initDeviceSession(session.user.id);
+        initDeviceSession();
         setupPresence(session.user.id);
       } else {
         setUser(null);
@@ -122,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     presenceChannelRef.current = channel;
   };
 
-  const initDeviceSession = async (userId: string) => {
+  const initDeviceSession = async () => {
     try {
       let deviceId = localStorage.getItem('nexo_device_id');
       if (!deviceId) {
@@ -133,7 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await registerDevice(deviceId);
 
       // Listen for session termination (if this device gets deleted because of >2 limit)
-      const channel = supabase.channel(`device_sessions_${deviceId}`)
+      supabase.channel(`device_sessions_${deviceId}`)
         .on('postgres_changes', { 
           event: 'DELETE', 
           schema: 'public', 

@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { verifyAdminSecret, getAdminDashboard, getAdminUsers, setAdminUserAction, resetUserPassword } from '../services/api';
 import { Shield, Users, Activity, MessageSquare, Ban, Pause, Play, KeyRound, AlertTriangle, LogOut, Loader2, ArrowLeft } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 export default function AdminDashboard() {
-  const { user, session } = useAuth();
+  const { session } = useAuth();
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [secretCode, setSecretCode] = useState('');
