@@ -8,7 +8,7 @@ import { useLiveKitCall } from '../hooks/useLiveKitCall';
 import { useNotifications } from '../hooks/useNotifications';
 import { loadPrivateKey, decryptSymmetricKey, decryptMessageText, generateSymmetricKey, importPublicKey, encryptSymmetricKey, encryptMessageText } from '../lib/crypto';
 import CallModal from './CallModal';
-import LiveKitCallUI from './LiveKitCallUI';
+import { LiveKitCallUI } from './LiveKitCallUI';
 import UserProfile from './UserProfile';
 import Lightbox from './Lightbox';
 import EmojiPicker, { Theme } from 'emoji-picker-react';

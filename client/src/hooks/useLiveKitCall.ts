@@ -24,7 +24,7 @@ export function useLiveKitCall(
     _setIncomingCallData(data);
   };
 
-  const initiateCall = async (targetId: string, targetName: string, type: 'video' | 'audio', myId: string, myName: string) => {
+  const initiateCall = async (targetId: string, _targetName: string, type: 'video' | 'audio', myId: string, myName: string) => {
     if (callStatusRef.current !== 'idle') return;
 
     console.log(`[LiveKit] Initiating ${type} call to ${targetId}`);

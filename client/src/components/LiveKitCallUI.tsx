@@ -3,8 +3,7 @@ import {
   LiveKitRoom,
   VideoConference,
   RoomAudioRenderer,
-  ControlBar,
-  useDisconnectButton
+  ControlBar
 } from '@livekit/components-react';
 import '@livekit/components-styles';
 
@@ -19,7 +18,6 @@ interface LiveKitCallUIProps {
 
 export const LiveKitCallUI: React.FC<LiveKitCallUIProps> = ({
   token,
-  roomName,
   serverUrl,
   type,
   onDisconnect,
