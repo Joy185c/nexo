@@ -210,6 +210,7 @@ export function useWebRTC(
       const stats = await pc.getStats();
       let audioSent = 0, videoSent = 0;
       let audioRecv = 0, videoRecv = 0;
+      let selectedPair = 'None';
       
       stats.forEach(report => {
         if (report.type === 'outbound-rtp') {
@@ -220,14 +221,25 @@ export function useWebRTC(
           if (report.kind === 'audio') audioRecv = report.packetsReceived;
           if (report.kind === 'video') videoRecv = report.packetsReceived;
         }
+        if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.nominated) {
+          const local = stats.get(report.localCandidateId);
+          const remote = stats.get(report.remoteCandidateId);
+          if (local && remote) {
+             selectedPair = `${local.candidateType} (${local.protocol}) <-> ${remote.candidateType} (${remote.protocol})`;
+          }
+        }
       });
       
-      console.log(`\n=== FINAL REPORT: RTP STATISTICS (5s after connect) ===`);
+      const hasTwilio = dynamicIceServersRef.current.iceServers.some((s: any) => s.urls && typeof s.urls === 'string' && s.urls.includes('twilio'));
+      
+      console.log(`\n=== FINAL REPORT: WEBRTC DIAGNOSTICS (5s after connect) ===`);
+      console.log(`TURN Configured: ${hasTwilio ? 'YES (Twilio Active)' : 'NO'}`);
+      console.log(`Selected ICE Pair: ${selectedPair}`);
       console.log(`Audio packets sent: ${audioSent}`);
       console.log(`Audio packets received: ${audioRecv}`);
       console.log(`Video packets sent: ${videoSent}`);
       console.log(`Video packets received: ${videoRecv}`);
-      console.log(`=======================================================\n`);
+      console.log(`===========================================================\n`);
       
     } catch (e) {
       console.error('[WebRTC] Failed to get stats', e);
