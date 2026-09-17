@@ -196,7 +196,12 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
 
   useEffect(() => {
     if (page === 1) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({
+          top: scrollContainerRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
     } else if (scrollContainerRef.current) {
       const newScrollHeight = scrollContainerRef.current.scrollHeight;
       scrollContainerRef.current.scrollTop = newScrollHeight - prevScrollHeightRef.current;
@@ -258,8 +263,12 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
 
   const scrollToMessage = (msgId: string) => {
     const el = document.getElementById(`msg-${msgId}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (el && scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const scrollPos = el.offsetTop - container.offsetTop - (container.clientHeight / 2) + (el.clientHeight / 2);
+      container.scrollTo({ top: scrollPos, behavior: 'smooth' });
+      
+      el.style.transition = 'background-color 0.5s';
       setHighlightedMsgId(msgId);
       setTimeout(() => setHighlightedMsgId(null), 2000);
     } else {
