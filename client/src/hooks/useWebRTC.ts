@@ -96,14 +96,16 @@ export function useWebRTC(
     }
   };
 
-  // 2. Others receive peer_join
   const handlePeerJoin = async (sender_id: string, caller_name: string, type: 'video' | 'audio', is_group: boolean) => {
     if (callStatus === 'idle') {
       // Prompt user to join
       setCallType(type);
       setIncomingCallData({ caller_id: sender_id, caller_name, type, is_group });
       setCallStatus('ringing');
-    } else if (callStatus === 'connected' && localStream) {
+    } else if ((callStatus === 'connected' || callStatus === 'calling') && localStream) {
+      if (callStatus === 'calling') {
+        setCallStatus('connected');
+      }
       // We are already in the call, someone new joined!
       // We must create an offer for them.
       const pc = initPeerConnection(sender_id, localStream);
