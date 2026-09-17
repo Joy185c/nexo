@@ -180,7 +180,7 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
         })
         .on('broadcast', { event: 'peer_leave' }, (payload) => {
           if (payload.payload.sender_id !== profile?.id) {
-            webrtc.handlePeerLeave(payload.payload.sender_id);
+            webrtc.handlePeerLeave(payload.payload.sender_id, chat.is_group);
           }
         })
         .subscribe();

@@ -31,7 +31,12 @@ export function useWebRTC(
   };
 
   const [callType, setCallType] = useState<'video' | 'audio'>('video');
-  const [incomingCallData, setIncomingCallData] = useState<{ caller_id: string, caller_name: string, type: 'video' | 'audio', is_group?: boolean } | null>(null);
+  const [incomingCallData, _setIncomingCallData] = useState<{ caller_id: string, caller_name: string, type: 'video' | 'audio', is_group?: boolean } | null>(null);
+  const incomingCallDataRef = useRef<{ caller_id: string, caller_name: string, type: 'video' | 'audio', is_group?: boolean } | null>(null);
+  const setIncomingCallData = (data: { caller_id: string, caller_name: string, type: 'video' | 'audio', is_group?: boolean } | null) => {
+    incomingCallDataRef.current = data;
+    _setIncomingCallData(data);
+  };
 
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
@@ -210,7 +215,7 @@ export function useWebRTC(
     cleanup();
   };
 
-  const handlePeerLeave = (sender_id: string) => {
+  const handlePeerLeave = (sender_id: string, is_group: boolean = false) => {
     if (peerConnectionsRef.current[sender_id]) {
       peerConnectionsRef.current[sender_id].close();
       delete peerConnectionsRef.current[sender_id];
@@ -221,8 +226,12 @@ export function useWebRTC(
       return next;
     });
     
-    if (Object.keys(peerConnectionsRef.current).length === 0 && callStatusRef.current === 'connected') {
-      // endCall(); // Optional: end call if everyone leaves, but we might want to wait alone in a group.
+    if (callStatusRef.current === 'ringing' && incomingCallDataRef.current?.caller_id === sender_id) {
+      cleanup(); // The caller hung up before we answered
+    } else if (callStatusRef.current === 'calling' && !is_group) {
+      cleanup(); // The receiver declined the call
+    } else if (callStatusRef.current === 'connected' && Object.keys(peerConnectionsRef.current).length === 0 && !is_group) {
+      cleanup(); // The other person left the 1-on-1 call
     }
   };
 
