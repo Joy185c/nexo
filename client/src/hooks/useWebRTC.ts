@@ -11,13 +11,25 @@ export function useWebRTC(
   sendSignalingMessage: (event: string, payload: any) => void,
   onCallLogged?: (data: { duration: number, status: string, type: 'video' | 'audio' }) => void
 ) {
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [localStream, _setLocalStream] = useState<MediaStream | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const setLocalStream = (stream: MediaStream | null) => {
+    localStreamRef.current = stream;
+    _setLocalStream(stream);
+  };
+
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
   
   const peerConnectionsRef = useRef<Record<string, RTCPeerConnection>>({});
   const iceCandidateQueueRef = useRef<Record<string, RTCIceCandidateInit[]>>({});
   
-  const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'ringing' | 'connected'>('idle');
+  const [callStatus, _setCallStatus] = useState<'idle' | 'calling' | 'ringing' | 'connected'>('idle');
+  const callStatusRef = useRef<'idle' | 'calling' | 'ringing' | 'connected'>('idle');
+  const setCallStatus = (status: 'idle' | 'calling' | 'ringing' | 'connected') => {
+    callStatusRef.current = status;
+    _setCallStatus(status);
+  };
+
   const [callType, setCallType] = useState<'video' | 'audio'>('video');
   const [incomingCallData, setIncomingCallData] = useState<{ caller_id: string, caller_name: string, type: 'video' | 'audio', is_group?: boolean } | null>(null);
 
@@ -72,7 +84,7 @@ export function useWebRTC(
         delete peerConnectionsRef.current[targetId];
         
         // If no more connections, end call
-        if (Object.keys(peerConnectionsRef.current).length === 0 && callStatus === 'connected') {
+        if (Object.keys(peerConnectionsRef.current).length === 0 && callStatusRef.current === 'connected') {
           endCall();
         }
       }
@@ -98,18 +110,18 @@ export function useWebRTC(
   };
 
   const handlePeerJoin = async (sender_id: string, caller_name: string, type: 'video' | 'audio', is_group: boolean) => {
-    if (callStatus === 'idle') {
+    if (callStatusRef.current === 'idle') {
       // Prompt user to join
       setCallType(type);
       setIncomingCallData({ caller_id: sender_id, caller_name, type, is_group });
       setCallStatus('ringing');
-    } else if ((callStatus === 'connected' || callStatus === 'calling') && localStream) {
-      if (callStatus === 'calling') {
+    } else if ((callStatusRef.current === 'connected' || callStatusRef.current === 'calling') && localStreamRef.current) {
+      if (callStatusRef.current === 'calling') {
         setCallStatus('connected');
       }
       // We are already in the call, someone new joined!
       // We must create an offer for them.
-      const pc = initPeerConnection(sender_id, localStream);
+      const pc = initPeerConnection(sender_id, localStreamRef.current);
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       sendSignalingMessage('call_offer', { target_id: sender_id, offer, type });
@@ -134,9 +146,9 @@ export function useWebRTC(
 
   // 4. New user receives offers from existing users
   const handleReceiveOffer = async (offer: RTCSessionDescriptionInit, sender_id: string) => {
-    if (callStatus !== 'connected' || !localStream) return;
+    if (callStatusRef.current !== 'connected' || !localStreamRef.current) return;
     try {
-      const pc = initPeerConnection(sender_id, localStream);
+      const pc = initPeerConnection(sender_id, localStreamRef.current);
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       
       // Process queued ICE candidates
@@ -209,14 +221,14 @@ export function useWebRTC(
       return next;
     });
     
-    if (Object.keys(peerConnectionsRef.current).length === 0 && callStatus === 'connected') {
+    if (Object.keys(peerConnectionsRef.current).length === 0 && callStatusRef.current === 'connected') {
       // endCall(); // Optional: end call if everyone leaves, but we might want to wait alone in a group.
     }
   };
 
   const toggleAudio = () => {
-    if (localStream) {
-      const audioTrack = localStream.getAudioTracks()[0];
+    if (localStreamRef.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         setIsMuted(!audioTrack.enabled);
@@ -225,8 +237,8 @@ export function useWebRTC(
   };
 
   const toggleVideo = () => {
-    if (localStream) {
-      const videoTrack = localStream.getVideoTracks()[0];
+    if (localStreamRef.current) {
+      const videoTrack = localStreamRef.current.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
         setIsVideoOff(!videoTrack.enabled);
@@ -235,14 +247,14 @@ export function useWebRTC(
   };
 
   const cleanup = () => {
-    if (isCaller && callStatus !== 'idle') {
+    if (isCaller && callStatusRef.current !== 'idle') {
       let duration = 0;
       let status = 'missed';
       
-      if (callStatus === 'connected' && callStartTimeRef.current) {
+      if (callStatusRef.current === 'connected' && callStartTimeRef.current) {
         duration = Math.floor((Date.now() - callStartTimeRef.current) / 1000);
         status = 'answered';
-      } else if (callStatus === 'calling' || callStatus === 'ringing') {
+      } else if (callStatusRef.current === 'calling' || callStatusRef.current === 'ringing') {
         status = 'missed'; // or declined
       }
       
@@ -255,8 +267,8 @@ export function useWebRTC(
     peerConnectionsRef.current = {};
     iceCandidateQueueRef.current = {};
     
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
       setLocalStream(null);
     }
     
