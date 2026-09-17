@@ -93,4 +93,8 @@ export const setAdminUserAction = async (userId: string, action: string) => apiF
 export const resetUserPassword = async (userId: string, newPassword: string) => apiFetch(`/admin/users/${userId}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword }) });
 
 // WebRTC
-export const getTurnServers = async () => apiFetch('/webrtc/turn');
+export const getTurnServers = async () => {
+  const res = await apiFetch(`/webrtc/turn?t=${Date.now()}`);
+  console.log('[API] Raw TURN response:', res);
+  return res;
+};
