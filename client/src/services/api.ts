@@ -54,7 +54,7 @@ export const pinMessage = (chatId: string, messageId: string) => apiFetch(`/mess
 export const unsendMessage = (chatId: string, messageId: string) => apiFetch(`/messages/${chatId}/messages/${messageId}`, { method: 'DELETE' });
 export const deleteForMe = (chatId: string, messageId: string) => apiFetch(`/messages/${chatId}/messages/${messageId}/delete-for-me`, { method: 'PUT' });
 export const deleteConversation = (chatId: string) => apiFetch(`/chats/${chatId}`, { method: 'DELETE' });
-export const toggleArchiveChat = (chatId: string, isArchived: boolean) => apiFetch(`/chats/${chatId}/archive`, { method: 'PATCH', body: JSON.stringify({ is_archived }) });
+export const toggleArchiveChat = (chatId: string, isArchived: boolean) => apiFetch(`/chats/${chatId}/archive`, { method: 'PATCH', body: JSON.stringify({ is_archived: isArchived }) });
 
 // Phase 14 Additions
 export const getUserProfile = (userId: string) => apiFetch(`/users/${userId}`);
