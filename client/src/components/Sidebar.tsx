@@ -8,6 +8,7 @@ import MoodCreator from './MoodCreator';
 import MoodViewer from './MoodViewer';
 import FriendsModal from './FriendsModal';
 import CreateGroupModal from './CreateGroupModal';
+import ConfirmModal from './ConfirmModal';
 import { supabase } from '../lib/supabase';
 import { useNotifications } from '../hooks/useNotifications';
 
@@ -15,6 +16,7 @@ export default function Sidebar({ onSelectChat, activeChatId, activeTab, setActi
   const [chats, setChats] = useState<any[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [chatToDelete, setChatToDelete] = useState<string | null>(null);
   
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -157,18 +159,25 @@ export default function Sidebar({ onSelectChat, activeChatId, activeTab, setActi
     } catch (err) { console.error(err); }
   };
 
-  const handleDeleteChat = async (chatId: string, e: React.MouseEvent) => {
+  const handleDeleteChat = (chatId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this chat?')) return;
+    setMenuOpenId(null);
+    setChatToDelete(chatId);
+  };
+
+  const confirmDeleteChat = async () => {
+    if (!chatToDelete) return;
     try {
-      await deleteConversation(chatId);
+      await deleteConversation(chatToDelete);
       await loadChats();
-      if (activeChatId === chatId) {
+      if (activeChatId === chatToDelete) {
         onSelectChat(null); // Deselect if deleting
       }
+      setChatToDelete(null);
     } catch (err: any) { 
       console.error(err);
       alert('Error deleting chat: ' + err.message);
+      setChatToDelete(null);
     }
   };
 
