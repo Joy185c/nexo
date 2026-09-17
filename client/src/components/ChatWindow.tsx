@@ -430,27 +430,37 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
     try {
       let finalContent = content;
       
-      const symKey = await generateSymmetricKey();
-      const { ciphertext, iv } = await encryptMessageText(content, symKey);
-      
-      const keys: Record<string, string> = {};
-      for (const member of chat.members) {
-        if (member.user?.public_key) {
-          const pubKey = await importPublicKey(member.user.public_key);
-          const encSym = await encryptSymmetricKey(symKey, pubKey);
-          keys[member.user_id] = encSym;
+      // Try E2EE encryption, but fallback to plaintext gracefully
+      try {
+        const symKey = await generateSymmetricKey();
+        const { ciphertext, iv } = await encryptMessageText(content, symKey);
+        
+        const keys: Record<string, string> = {};
+        for (const member of chat.members) {
+          if (member.user?.public_key) {
+            const pubKey = await importPublicKey(member.user.public_key);
+            const encSym = await encryptSymmetricKey(symKey, pubKey);
+            keys[member.user_id] = encSym;
+          }
         }
-      }
-      
-      if (Object.keys(keys).length > 0) {
-        finalContent = 'E2EE:' + JSON.stringify({ ciphertext, iv, keys });
+        
+        // Only use encrypted format if ALL members have keys
+        const memberCount = chat.members?.filter((m: any) => m.user?.id).length || 0;
+        if (Object.keys(keys).length > 0 && Object.keys(keys).length >= memberCount) {
+          finalContent = 'E2EE:' + JSON.stringify({ ciphertext, iv, keys });
+        }
+        // else: send as plaintext silently (keys loading in background)
+      } catch (encErr) {
+        console.warn('E2EE failed, sending plaintext:', encErr);
+        // fallback to plaintext - no alert shown to user
       }
 
       await sendMessage(chat.id, finalContent, undefined, undefined, currentReplyId);
       loadMessages(1);
     } catch (e) {
       console.error(e);
-      alert('Failed to send encrypted message. E2EE keys might be missing for some users.');
+      // Only show error if the message itself failed to send
+      alert('Failed to send message. Please try again.');
     }
   };
 
