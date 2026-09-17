@@ -618,15 +618,31 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
       >
         {loadingMore && <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Loading older messages...</div>}
         
-        {messages.map((msg, i) => {
-          if (msg.deleted_for?.includes(profile?.id)) return null;
+        {(() => {
+          // Calculate the latest read timestamp by anyone other than the current user
+          let maxReadTimestamp = 0;
+          messages.forEach(msg => {
+            if (msg.message_reads && msg.message_reads.length > 0) {
+              msg.message_reads.forEach((r: any) => {
+                if (r.user_id !== profile?.id) {
+                  const t = new Date(msg.created_at).getTime();
+                  if (t > maxReadTimestamp) maxReadTimestamp = t;
+                }
+              });
+            }
+          });
 
-          const isBlocked = blockedUsers.includes(msg.sender_id);
-          if (isBlocked && chat.is_group) return null;
+          return messages.map((msg, i) => {
+            if (msg.deleted_for?.includes(profile?.id)) return null;
 
-          const isMine = msg.sender_id === profile?.id;
-          const isDeleted = msg.is_deleted;
-          const isSeen = msg.message_reads && msg.message_reads.length > 0 && msg.message_reads.some((r: any) => r.user_id !== profile?.id);
+            const isBlocked = blockedUsers.includes(msg.sender_id);
+            if (isBlocked && chat.is_group) return null;
+
+            const isMine = msg.sender_id === profile?.id;
+            const isDeleted = msg.is_deleted;
+            const msgTime = new Date(msg.created_at).getTime();
+            const isSeen = msgTime <= maxReadTimestamp;
+
           
           return (
             <div key={msg.id || i} style={{ position: 'relative' }}>
