@@ -6,13 +6,7 @@ const app = express();
 
 app.use(helmet());
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || origin.startsWith('http://localhost:')) {
-      callback(null, true);
-    } else {
-      callback(null, process.env.CLIENT_URL || 'http://localhost:5173');
-    }
-  },
+  origin: true,
   credentials: true
 }));
 app.use(express.json());
