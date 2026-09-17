@@ -257,6 +257,15 @@ export function useWebRTC(
       setCallType(type);
       setIncomingCallData({ caller_name, type, is_group, caller_id: sender_id });
     } else if ((callStatusRef.current === 'connected' || callStatusRef.current === 'calling') && localStreamRef.current) {
+      // If we already have a stable or connecting PeerConnection for this user, don't restart it
+      if (peerConnectionsRef.current[sender_id]) {
+        const state = peerConnectionsRef.current[sender_id].signalingState;
+        if (state !== 'closed' && state !== 'have-local-offer') {
+          console.warn(`[WebRTC] PeerConnection already exists and state is ${state}, ignoring duplicate peer_join.`);
+          return;
+        }
+      }
+
       if (callStatusRef.current === 'calling') {
         console.log(`[WebRTC] Upgrading call status from calling to connected`);
         setCallStatus('connected');
@@ -342,6 +351,10 @@ export function useWebRTC(
     const pc = peerConnectionsRef.current[sender_id];
     if (!pc) {
       console.warn(`[WebRTC] No PeerConnection found for ${sender_id} when receiving answer!`);
+      return;
+    }
+    if (pc.signalingState === 'stable') {
+      console.warn(`[WebRTC] PeerConnection is already stable, ignoring duplicate answer from ${sender_id}`);
       return;
     }
     try {
