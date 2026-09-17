@@ -8,7 +8,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { data: memberships, error: memErr } = await supabaseAdmin
       .from('chat_members')
-      .select('chat_id, deleted_at')
+      .select('chat_id, deleted_at, is_archived')
       .eq('user_id', req.user.id);
       
     if (memErr) throw memErr;
@@ -16,6 +16,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
 
     const chatIds = memberships.map(m => m.chat_id);
     const memberMap = new Map(memberships.map(m => [m.chat_id, m.deleted_at]));
+    const archiveMap = new Map(memberships.map(m => [m.chat_id, m.is_archived]));
 
     const { data: chats, error: chatErr } = await supabaseAdmin
       .from('chats')
@@ -73,6 +74,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
         updated_at: lastMessage ? lastMessage.created_at : chat.updated_at,
         last_message: lastMessage,
         unread_count: unreadCount,
+        is_archived: archiveMap.get(chat.id) || false,
         members: chat.members
       };
     }));
@@ -250,6 +252,21 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
     const { error } = await supabaseAdmin.from('chat_members').update({ deleted_at: new Date().toISOString() }).eq('chat_id', chat_id).eq('user_id', req.user.id);
     if (error) throw error;
     res.json({ success: true, data: { deleted: chat_id } });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: err.message } });
+  }
+});
+
+// Toggle Archive
+router.patch('/:id/archive', requireAuth, async (req: AuthRequest, res) => {
+  const chat_id = req.params.id as string;
+  const { is_archived } = req.body;
+  if (typeof is_archived !== 'boolean') return res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'is_archived boolean is required' } });
+
+  try {
+    const { error } = await supabaseAdmin.from('chat_members').update({ is_archived }).eq('chat_id', chat_id).eq('user_id', req.user.id);
+    if (error) throw error;
+    res.json({ success: true, data: { archived: chat_id, is_archived } });
   } catch (err: any) {
     res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: err.message } });
   }

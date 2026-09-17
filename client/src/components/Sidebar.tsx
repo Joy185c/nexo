@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { getChats, searchUsers, searchMessages, createChat, createGroup, getCallHistory, getMoods } from '../services/api';
+import { getChats, searchUsers, searchMessages, createChat, createGroup, getCallHistory, getMoods, deleteConversation, toggleArchiveChat } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Search, User, Circle, MessageSquare, Settings, Users, LogOut, Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Plus, MessageCircle } from 'lucide-react';
+import { Search, User, Circle, MessageSquare, Settings, Users, LogOut, Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Plus, MessageCircle, MoreVertical, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
 import SettingsModal from './SettingsModal';
 import ProfileModal from './ProfileModal';
 import MoodCreator from './MoodCreator';
@@ -13,6 +13,19 @@ import { useNotifications } from '../hooks/useNotifications';
 
 export default function Sidebar({ onSelectChat, activeChatId, activeTab, setActiveTab }: any) {
   const [chats, setChats] = useState<any[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.chat-menu-container')) {
+        setMenuOpenId(null);
+      }
+    };
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMode, setSearchMode] = useState<'users' | 'messages'>('users');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -133,7 +146,28 @@ export default function Sidebar({ onSelectChat, activeChatId, activeTab, setActi
     } catch (e) { console.error(e); }
   };
 
-  // handleDeleteChat removed for cleaner UI - can be moved to context menu later
+  const handleArchiveChat = async (chatId: string, isArchived: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await toggleArchiveChat(chatId, isArchived);
+      await loadChats();
+      if (activeChatId === chatId && isArchived) {
+        onSelectChat(null); // Deselect if archiving
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteChat = async (chatId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this chat?')) return;
+    try {
+      await deleteConversation(chatId);
+      await loadChats();
+      if (activeChatId === chatId) {
+        onSelectChat(null); // Deselect if deleting
+      }
+    } catch (err) { console.error(err); }
+  };
 
   // Nav Item Component for Left Rail / Bottom Nav
   const NavItem = ({ id, icon: Icon, label }: any) => (
@@ -386,7 +420,29 @@ export default function Sidebar({ onSelectChat, activeChatId, activeTab, setActi
 
               {/* Chat List */}
               <div style={{ paddingTop: '0.5rem' }}>
-                {chats.map(chat => {
+                
+                {/* Archived Toggle Button */}
+                {chats.some(c => c.is_archived) && !showArchived && (
+                  <div 
+                    onClick={() => setShowArchived(true)}
+                    style={{ padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', borderBottom: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}
+                  >
+                    <Archive size={20} />
+                    <span style={{ fontWeight: 600 }}>Archived</span>
+                  </div>
+                )}
+                
+                {showArchived && (
+                  <div 
+                    onClick={() => setShowArchived(false)}
+                    style={{ padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', borderBottom: '1px solid var(--border-light)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+                  >
+                    <ArchiveRestore size={20} />
+                    <span style={{ fontWeight: 600 }}>Back to Chats</span>
+                  </div>
+                )}
+
+                {chats.filter(c => showArchived ? c.is_archived : !c.is_archived).map(chat => {
                   let isOnline = false;
                   if (!chat.is_group && chat.members) {
                     const otherMember = chat.members.find((m: any) => m.user_id !== user?.id);
@@ -440,6 +496,47 @@ export default function Sidebar({ onSelectChat, activeChatId, activeTab, setActi
                             </div>
                           )}
                         </div>
+                      </div>
+                      
+                      {/* 3-dot Menu */}
+                      <div style={{ position: 'relative' }} className="chat-menu-container">
+                        <button 
+                          className="btn-icon" 
+                          style={{ color: 'var(--text-secondary)', padding: '0.25rem' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMenuOpenId(menuOpenId === chat.id ? null : chat.id);
+                          }}
+                        >
+                          <MoreVertical size={18} />
+                        </button>
+                        
+                        {menuOpenId === chat.id && (
+                          <div 
+                            style={{ 
+                              position: 'absolute', right: 0, top: '100%', zIndex: 100,
+                              backgroundColor: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
+                              boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-color)',
+                              padding: '0.25rem', minWidth: '120px', display: 'flex', flexDirection: 'column'
+                            }}
+                          >
+                            <button 
+                              className="btn" 
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', justifyContent: 'flex-start', color: 'var(--text-primary)' }}
+                              onClick={(e) => handleArchiveChat(chat.id, !chat.is_archived, e)}
+                            >
+                              {chat.is_archived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+                              {chat.is_archived ? 'Unarchive' : 'Archive'}
+                            </button>
+                            <button 
+                              className="btn" 
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', justifyContent: 'flex-start', color: 'var(--danger)' }}
+                              onClick={(e) => handleDeleteChat(chat.id, e)}
+                            >
+                              <Trash2 size={16} /> Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
