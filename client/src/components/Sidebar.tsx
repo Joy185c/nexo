@@ -163,7 +163,7 @@ export default function Sidebar({ onSelectChat, activeChatId, activeTab, setActi
       }}>
         <Icon size={24} strokeWidth={activeTab === id ? 2.5 : 2} />
       </div>
-      <span style={{ fontSize: '0.65rem', fontWeight: activeTab === id ? 600 : 500 }}>{label}</span>
+      <span className="desktop-only" style={{ fontSize: '0.65rem', fontWeight: activeTab === id ? 600 : 500 }}>{label}</span>
     </div>
   );
 
