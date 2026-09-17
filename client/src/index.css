@@ -88,10 +88,15 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
+}
+
+@media (min-width: 769px) {
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
 }
 
 a {
@@ -286,6 +291,10 @@ input, textarea {
     align-items: center;
   }
   
+  .app-container {
+    height: 100%;
+  }
+
   .app-container:not(.chat-active) {
     padding-bottom: calc(60px + env(safe-area-inset-bottom, 12px));
   }
