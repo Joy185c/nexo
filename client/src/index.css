@@ -286,7 +286,7 @@ input, textarea {
     align-items: center;
   }
   
-  .app-container {
+  .app-container:not(.chat-active) {
     padding-bottom: calc(60px + env(safe-area-inset-bottom, 12px));
   }
 }
