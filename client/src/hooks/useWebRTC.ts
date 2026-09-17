@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { getTurnServers } from '../services/api';
 
 const ICE_SERVERS = {
   iceServers: [
@@ -58,6 +59,24 @@ export function useWebRTC(
     _setIncomingCallData(data);
   };
 
+  const dynamicIceServersRef = useRef<any>(ICE_SERVERS);
+
+  // Fetch dynamic TURN servers from Twilio (via our backend)
+  useEffect(() => {
+    getTurnServers().then((res: any) => {
+      if (res.success && res.data && res.data.length > 0) {
+        dynamicIceServersRef.current = {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            ...res.data
+          ]
+        };
+        console.log('[WebRTC] Fetched dynamic Twilio TURN credentials successfully.');
+      }
+    }).catch((e: any) => console.error('[WebRTC] Failed to fetch TURN servers:', e));
+  }, []);
+
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
 
@@ -92,8 +111,8 @@ export function useWebRTC(
       peerConnectionsRef.current[targetId].close();
     }
     
-    console.log(`[WebRTC] Using ICE Servers:`, ICE_SERVERS);
-    const pc = new RTCPeerConnection(ICE_SERVERS);
+    console.log(`[WebRTC] Using ICE Servers:`, dynamicIceServersRef.current);
+    const pc = new RTCPeerConnection(dynamicIceServersRef.current);
     peerConnectionsRef.current[targetId] = pc;
 
     if (stream) {

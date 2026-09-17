@@ -90,3 +90,6 @@ export const getAdminDashboard = async () => apiFetch('/admin/dashboard');
 export const getAdminUsers = async () => apiFetch('/admin/users');
 export const setAdminUserAction = async (userId: string, action: string) => apiFetch(`/admin/users/${userId}/action`, { method: 'POST', body: JSON.stringify({ action }) });
 export const resetUserPassword = async (userId: string, newPassword: string) => apiFetch(`/admin/users/${userId}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword }) });
+
+// WebRTC
+export const getTurnServers = async () => apiFetch('/webrtc/turn');

@@ -18,6 +18,7 @@ import callsRouter from './routes/calls';
 import friendsRouter from './routes/friends';
 import moodsRouter from './routes/moods';
 import adminRouter from './routes/admin';
+import webrtcRouter from './routes/webrtc';
 import rateLimit from 'express-rate-limit';
 
 const apiLimiter = rateLimit({
@@ -49,6 +50,7 @@ app.use('/api/calls', callsRouter);
 app.use('/api/friends', friendsRouter);
 app.use('/api/moods', moodsRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/webrtc', webrtcRouter);
 
 // Centralized error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
