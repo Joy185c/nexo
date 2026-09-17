@@ -10,7 +10,9 @@ const RemoteMedia = ({ stream, isAudioOnly, forceSpeaker }: { stream: MediaStrea
       console.log(`[WebRTC-UI] Assigning srcObject to video/audio element.`);
       ref.current.srcObject = stream;
       ref.current.onloadedmetadata = () => {
-        console.log(`[WebRTC-UI] loadedmetadata event fired. Video dimensions: ${(ref.current as HTMLVideoElement).videoWidth}x${(ref.current as HTMLVideoElement).videoHeight}`);
+        if (ref.current) {
+          console.log(`[WebRTC-UI] loadedmetadata event fired. Video dimensions: ${(ref.current as HTMLVideoElement).videoWidth}x${(ref.current as HTMLVideoElement).videoHeight}`);
+        }
       };
       ref.current.play().then(() => {
         console.log(`[WebRTC-UI] play() successful.`);
