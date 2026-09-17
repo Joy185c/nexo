@@ -95,19 +95,22 @@ export function useWebRTC(
 
     pc.ontrack = (event) => {
       console.log(`[WebRTC] ontrack event fired! Track kind: ${event.track.kind}, Streams length: ${event.streams?.length}`);
+      
+      const stream = event.streams && event.streams[0];
+      
       setRemoteStreams(prev => {
-        const stream = event.streams && event.streams[0] ? event.streams[0] : new MediaStream([event.track]);
-        console.log(`[WebRTC] Remote stream tracks:`, stream.getTracks().map(t => t.kind));
-        if (prev[targetId]) {
-          // Create a new stream to ensure React triggers re-render and re-assigns srcObject
-          const newStream = new MediaStream(prev[targetId].getTracks());
-          if (!newStream.getTracks().find(t => t.id === event.track.id)) {
-             console.log(`[WebRTC] Adding new track to existing remote stream: ${event.track.kind}`);
-             newStream.addTrack(event.track);
+        if (!stream) {
+          console.log(`[WebRTC] Fallback: No event.streams[0], using manual MediaStream.`);
+          if (prev[targetId]) {
+            prev[targetId].addTrack(event.track);
+            // Trigger a re-render by returning a new object reference
+            return { ...prev };
           }
-          return { ...prev, [targetId]: newStream };
+          return { ...prev, [targetId]: new MediaStream([event.track]) };
         }
-        console.log(`[WebRTC] Setting new remote stream for target: ${targetId}`);
+        
+        console.log(`[WebRTC] Setting remote stream directly from event.streams[0].`);
+        // Use the exact stream object provided by the browser
         return { ...prev, [targetId]: stream };
       });
     };
