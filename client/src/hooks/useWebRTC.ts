@@ -168,7 +168,7 @@ export function useWebRTC(
     if (callStatusRef.current === 'idle') {
       setCallStatus('ringing');
       setCallType(type);
-      setIncomingCallData({ caller_name, type, is_group, sender_id });
+      setIncomingCallData({ caller_name, type, is_group, caller_id: sender_id });
     } else if ((callStatusRef.current === 'connected' || callStatusRef.current === 'calling') && localStreamRef.current) {
       if (callStatusRef.current === 'calling') {
         console.log(`[WebRTC] Upgrading call status from calling to connected`);

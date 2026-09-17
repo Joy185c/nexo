@@ -900,7 +900,7 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
             </div>
           </div>
           );
-        })}
+        })})()}
         {typingUsers.length > 0 && (
           <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
             {typingUsers.join(', ')} {typingUsers.length > 1 ? 'are' : 'is'} typing...
