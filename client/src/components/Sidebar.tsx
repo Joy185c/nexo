@@ -569,6 +569,17 @@ export default function Sidebar({ onSelectChat, activeChatId, activeTab, setActi
 
       {showMoodCreator && <MoodCreator onClose={() => setShowMoodCreator(false)} onCreated={() => { setShowMoodCreator(false); loadMoods(); }} />}
       {moodViewerData && <MoodViewer groupedMoods={moodViewerData.grouped} initialUserIndex={moodViewerData.index} onClose={() => setMoodViewerData(null)} />}
+
+      {chatToDelete && (
+        <ConfirmModal
+          title="Delete Chat"
+          message="Are you sure you want to delete this chat? This action will remove the conversation history for you."
+          confirmText="Delete"
+          isDestructive={true}
+          onConfirm={confirmDeleteChat}
+          onCancel={() => setChatToDelete(null)}
+        />
+      )}
     </div>
   );
 }
