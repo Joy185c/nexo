@@ -92,7 +92,7 @@ router.get('/:chat_id', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { data: membership, error: memErr } = await supabaseAdmin
       .from('chat_members')
-      .select('id')
+      .select('id, deleted_at')
       .eq('chat_id', chat_id)
       .eq('user_id', req.user.id)
       .single();
@@ -113,7 +113,11 @@ router.get('/:chat_id', requireAuth, async (req: AuthRequest, res) => {
 
     if (msgErr) throw msgErr;
 
-    const filteredMessages = (messages || []).filter(m => !m.deleted_for?.includes(req.user.id));
+    const filteredMessages = (messages || []).filter(m => {
+      if (m.deleted_for?.includes(req.user.id)) return false;
+      if (membership.deleted_at && new Date(m.created_at) < new Date(membership.deleted_at)) return false;
+      return true;
+    });
 
     res.json({ success: true, data: filteredMessages });
   } catch (err: any) {

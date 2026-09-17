@@ -166,7 +166,10 @@ export default function Sidebar({ onSelectChat, activeChatId, activeTab, setActi
       if (activeChatId === chatId) {
         onSelectChat(null); // Deselect if deleting
       }
-    } catch (err) { console.error(err); }
+    } catch (err: any) { 
+      console.error(err);
+      alert('Error deleting chat: ' + err.message);
+    }
   };
 
   // Nav Item Component for Left Rail / Bottom Nav
