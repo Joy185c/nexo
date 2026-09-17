@@ -92,6 +92,18 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
           status: callData.status,
           duration: callData.duration
         });
+
+        // Send a message in the chat
+        let content = '';
+        if (callData.status === 'answered' || callData.duration > 0) {
+          const mins = Math.floor(callData.duration / 60);
+          const secs = callData.duration % 60;
+          content = `📞 ${callData.type === 'video' ? 'Video' : 'Audio'} Call Ended (${mins}:${secs.toString().padStart(2, '0')})`;
+        } else {
+          content = `📵 Missed ${callData.type === 'video' ? 'Video' : 'Audio'} Call`;
+        }
+        
+        sendMessage(chat.id, content).catch(console.error);
       } catch (err) {
         console.error('Failed to log call', err);
       }

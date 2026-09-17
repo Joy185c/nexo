@@ -1,15 +1,29 @@
 import { useEffect, useRef, useState } from 'react';
-import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff, Maximize, Minimize, User } from 'lucide-react';
+import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff, Maximize, Minimize, User, Volume2, VolumeX } from 'lucide-react';
 
-const RemoteVideo = ({ stream }: { stream: MediaStream }) => {
-  const ref = useRef<HTMLVideoElement>(null);
+const RemoteMedia = ({ stream, isAudioOnly, forceSpeaker }: { stream: MediaStream, isAudioOnly: boolean, forceSpeaker: boolean }) => {
+  const ref = useRef<HTMLVideoElement & HTMLAudioElement>(null);
+  
   useEffect(() => {
     if (ref.current && stream) {
       ref.current.srcObject = stream;
     }
   }, [stream]);
-  // Use a unique key based on stream id so it remounts if stream changes, though useEffect handles it
-  return <video ref={ref} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
+
+  // Attempt to route audio if setSinkId is supported (desktop mostly)
+  useEffect(() => {
+    if (ref.current && typeof (ref.current as any).setSinkId === 'function') {
+      // In a real app we'd enumerate devices, here we just catch errors if not permitted
+      (ref.current as any).setSinkId(forceSpeaker ? 'default' : '').catch(() => {});
+    }
+  }, [forceSpeaker]);
+
+  // Mobile browser hack: using a video tag often routes to speaker, audio tag to earpiece
+  if (isAudioOnly && !forceSpeaker) {
+    return <audio ref={ref as any} autoPlay playsInline style={{ display: 'none' }} />;
+  }
+
+  return <video ref={ref} autoPlay playsInline style={isAudioOnly ? { position: 'absolute', width: 0, height: 0, opacity: 0 } : { width: '100%', height: '100%', objectFit: 'cover' }} />;
 };
 
 export default function CallModal({
@@ -28,12 +42,30 @@ export default function CallModal({
 }: any) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [isSpeaker, setIsSpeaker] = useState(true);
 
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
     }
   }, [localStream]);
+
+  useEffect(() => {
+    let interval: any;
+    if (callStatus === 'connected') {
+      interval = setInterval(() => setDuration(prev => prev + 1), 1000);
+    } else {
+      setDuration(0);
+    }
+    return () => clearInterval(interval);
+  }, [callStatus]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   if (callStatus === 'idle') return null;
 
@@ -84,9 +116,11 @@ export default function CallModal({
   return (
     <div style={modalStyle}>
       <div style={{ padding: '1rem', backgroundColor: 'var(--bg-tertiary)', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {callStatus === 'calling' ? 'Calling...' : `In ${callType === 'video' ? 'Video' : 'Audio'} Call`}
-          <span style={{ fontSize: '0.75rem', color: 'var(--success)', marginLeft: '0.5rem' }}>{callStatus}</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--success)', backgroundColor: 'rgba(0, 255, 0, 0.1)', padding: '2px 6px', borderRadius: '4px' }}>
+            {callStatus === 'connected' ? formatTime(duration) : callStatus}
+          </span>
         </div>
         <button onClick={() => setIsFullscreen(!isFullscreen)} className="btn" style={{ padding: '0.25rem', color: 'var(--text-secondary)' }}>
           {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
@@ -100,7 +134,7 @@ export default function CallModal({
               <div style={{ width: '100%', height: '100%', display: 'grid', gridTemplateColumns, gap: '2px', backgroundColor: '#222' }}>
                 {streamsArray.map((stream, idx) => (
                   <div key={stream.id || idx} style={{ position: 'relative', width: '100%', height: '100%' }}>
-                    <RemoteVideo stream={stream} />
+                    <RemoteMedia stream={stream} isAudioOnly={false} forceSpeaker={true} />
                   </div>
                 ))}
               </div>
@@ -134,9 +168,7 @@ export default function CallModal({
               <>
                 <div>Connected ({numStreams} participants)</div>
                 {streamsArray.map((stream, idx) => (
-                  <div key={stream.id || idx} style={{ display: 'none' }}>
-                    <RemoteVideo stream={stream} />
-                  </div>
+                  <RemoteMedia key={stream.id || idx} stream={stream} isAudioOnly={true} forceSpeaker={isSpeaker} />
                 ))}
               </>
             ) : (
@@ -153,6 +185,11 @@ export default function CallModal({
         {callType === 'video' && (
           <button onClick={onToggleVideo} className="btn" style={{ borderRadius: '50%', padding: '0.75rem', backgroundColor: isVideoOff ? 'var(--danger)' : 'var(--bg-tertiary)', color: isVideoOff ? 'white' : 'var(--text-primary)', display: 'flex' }}>
             {isVideoOff ? <VideoOff size={20} /> : <Video size={20} />}
+          </button>
+        )}
+        {callType === 'audio' && (
+          <button onClick={() => setIsSpeaker(!isSpeaker)} className="btn" style={{ borderRadius: '50%', padding: '0.75rem', backgroundColor: isSpeaker ? 'var(--bg-tertiary)' : 'var(--bg-secondary)', color: isSpeaker ? 'var(--accent-primary)' : 'var(--text-primary)', display: 'flex' }}>
+            {isSpeaker ? <Volume2 size={20} /> : <VolumeX size={20} />}
           </button>
         )}
         <button onClick={onEndCall} className="btn" style={{ borderRadius: '50%', padding: '0.75rem', backgroundColor: 'var(--danger)', color: 'white', display: 'flex' }}>
