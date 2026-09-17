@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getMessages, sendMessage, markAsRead, reactToMessage, pinMessage, unsendMessage, deleteForMe, logCall } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Send, Check, Paperclip, Video, Phone, Reply, Pin, Trash2, Smile, X, Forward, ArrowLeft, Mic, Square } from 'lucide-react';
+import { Send, Check, CheckCheck, Paperclip, Video, Phone, Reply, Pin, Trash2, Smile, X, Forward, ArrowLeft, Mic, Square, User } from 'lucide-react';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { useNotifications } from '../hooks/useNotifications';
 import { loadPrivateKey, decryptSymmetricKey, decryptMessageText, generateSymmetricKey, importPublicKey, encryptSymmetricKey, encryptMessageText } from '../lib/crypto';
@@ -145,6 +145,17 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
         })
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `chat_id=eq.${chat.id}` }, (payload) => {
           setMessages(prev => prev.map(m => m.id === payload.new.id ? { ...m, ...payload.new } : m));
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'message_reads', filter: `chat_id=eq.${chat.id}` }, (payload) => {
+          setMessages(prev => prev.map(m => {
+            if (m.id === payload.new.message_id) {
+              const currentReads = m.message_reads || [];
+              if (!currentReads.some((r: any) => r.user_id === payload.new.user_id)) {
+                return { ...m, message_reads: [...currentReads, payload.new] };
+              }
+            }
+            return m;
+          }));
         })
         .on('broadcast', { event: 'typing' }, (payload) => {
           if (payload.payload.user_id !== profile?.id) {
@@ -603,6 +614,7 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
 
           const isMine = msg.sender_id === profile?.id;
           const isDeleted = msg.is_deleted;
+          const isSeen = msg.message_reads && msg.message_reads.length > 0 && msg.message_reads.some((r: any) => r.user_id !== profile?.id);
           
           return (
             <div key={msg.id || i} style={{ position: 'relative' }}>
@@ -673,16 +685,25 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
                   touchStartX.current = null;
                 }}
               >
-              {!isMine && msg.sender?.avatar_url && (
-                <img 
-                  src={msg.sender.avatar_url} 
-                  alt="avatar" 
-                  style={{ width: '28px', height: '28px', borderRadius: '50%', marginRight: '0.5rem', alignSelf: 'flex-end', objectFit: 'cover', cursor: 'pointer', marginBottom: '0.25rem' }} 
+              {!isMine && (
+                <div 
+                  style={{ 
+                    width: '28px', height: '28px', borderRadius: '50%', marginRight: '0.5rem', 
+                    alignSelf: 'flex-end', cursor: 'pointer', marginBottom: '0.25rem',
+                    backgroundColor: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0
+                  }}
                   onClick={(e) => {
                     e.stopPropagation();
                     setViewUserProfileId(msg.sender_id);
                   }}
-                />
+                >
+                  {msg.sender?.avatar_url ? (
+                    <img src={msg.sender.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                  ) : (
+                    <User size={16} />
+                  )}
+                </div>
               )}
 
               {/* Context Menu / Action Bar */}
@@ -806,7 +827,18 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
                   {!isDeleted && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '0.65rem', color: isMine ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)' }}>
                       {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      {isMine && <Check size={12} strokeWidth={3} />}
+                      {isMine && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                          {isSeen ? (
+                            <>
+                              <CheckCheck size={14} strokeWidth={2.5} color="#47bfff" />
+                              <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>seen</span>
+                            </>
+                          ) : (
+                            <Check size={12} strokeWidth={3} />
+                          )}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>

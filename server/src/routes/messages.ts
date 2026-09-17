@@ -104,7 +104,8 @@ router.get('/:chat_id', requireAuth, async (req: AuthRequest, res) => {
       .select(`
         id, chat_id, content, media_url, media_type, created_at, sender_id, is_deleted, is_pinned, reactions, deleted_for, reply_to_id,
         sender:users!sender_id(id, username, avatar_url),
-        reply_to:messages!reply_to_id(id, content, is_deleted, sender:users!sender_id(username))
+        reply_to:messages!reply_to_id(id, content, is_deleted, sender:users!sender_id(username)),
+        message_reads(user_id, read_at)
       `)
       .eq('chat_id', chat_id)
       .order('created_at', { ascending: false })
