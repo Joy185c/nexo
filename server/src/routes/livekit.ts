@@ -38,7 +38,7 @@ router.post('/token', requireAuth, async (req: any, res: any) => {
     const token = await at.toJwt();
     console.log(`[LiveKit] Generated token for user ${userId} in room ${roomName}`);
     
-    res.json({ success: true, token });
+    res.json({ success: true, data: { token } });
   } catch (error: any) {
     console.error('[LiveKit] Error generating token:', error);
     res.status(400).json({ success: false, error: { message: error.message || 'Invalid request' } });
