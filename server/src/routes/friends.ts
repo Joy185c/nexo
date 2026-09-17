@@ -30,7 +30,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
 
 // POST /api/friends/request/:id - Send Friend Request
 router.post('/request/:id', requireAuth, async (req: AuthRequest, res) => {
-  const targetId = req.params.id;
+  const targetId = req.params.id as string;
   if (targetId === req.user.id) return res.status(400).json({ success: false, error: { message: 'Cannot add yourself' } });
 
   const [u1, u2] = getOrderedIds(req.user.id, targetId);
@@ -58,7 +58,7 @@ router.post('/request/:id', requireAuth, async (req: AuthRequest, res) => {
 
 // PUT /api/friends/accept/:id - Accept Request
 router.put('/accept/:id', requireAuth, async (req: AuthRequest, res) => {
-  const targetId = req.params.id;
+  const targetId = req.params.id as string;
   const [u1, u2] = getOrderedIds(req.user.id, targetId);
 
   try {
@@ -77,7 +77,7 @@ router.put('/accept/:id', requireAuth, async (req: AuthRequest, res) => {
 
 // DELETE /api/friends/remove/:id - Unfriend or Reject
 router.delete('/remove/:id', requireAuth, async (req: AuthRequest, res) => {
-  const targetId = req.params.id;
+  const targetId = req.params.id as string;
   const [u1, u2] = getOrderedIds(req.user.id, targetId);
 
   try {

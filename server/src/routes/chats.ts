@@ -163,7 +163,7 @@ const requireGroupAdmin = async (chat_id: string, user_id: string) => {
 
 // Add Member
 router.post('/:id/members', requireAuth, async (req: AuthRequest, res) => {
-  const chat_id = req.params.id;
+  const chat_id = req.params.id as string;
   const { user_id } = req.body;
 
   try {
@@ -191,8 +191,8 @@ router.post('/:id/members', requireAuth, async (req: AuthRequest, res) => {
 
 // Remove Member / Leave
 router.delete('/:id/members/:userId', requireAuth, async (req: AuthRequest, res) => {
-  const chat_id = req.params.id;
-  const targetUserId = req.params.userId;
+  const chat_id = req.params.id as string;
+  const targetUserId = req.params.userId as string;
 
   try {
     let action = 'removed';
@@ -227,8 +227,8 @@ router.delete('/:id/members/:userId', requireAuth, async (req: AuthRequest, res)
 
 // Update Member Role
 router.patch('/:id/members/:userId/role', requireAuth, async (req: AuthRequest, res) => {
-  const chat_id = req.params.id;
-  const targetUserId = req.params.userId;
+  const chat_id = req.params.id as string;
+  const targetUserId = req.params.userId as string;
   const { role } = req.body;
   if (role !== 'admin' && role !== 'member') return res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'Invalid role' } });
 
@@ -245,7 +245,7 @@ router.patch('/:id/members/:userId/role', requireAuth, async (req: AuthRequest, 
 
 // Delete (Hide) Conversation
 router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
-  const chat_id = req.params.id;
+  const chat_id = req.params.id as string;
   try {
     const { error } = await supabaseAdmin.from('chat_members').update({ deleted_at: new Date().toISOString() }).eq('chat_id', chat_id).eq('user_id', req.user.id);
     if (error) throw error;
@@ -257,7 +257,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
 
 // Update Group Info (Name, Avatar)
 router.patch('/:id', requireAuth, async (req: AuthRequest, res) => {
-  const chat_id = req.params.id;
+  const chat_id = req.params.id as string;
   const { name, avatar_url } = req.body;
 
   try {

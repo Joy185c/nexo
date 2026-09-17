@@ -48,7 +48,7 @@ router.post('/register', async (req, res) => {
     res.status(201).json({ success: true, data: { id: userId, email, username } });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: err.errors[0].message } });
+      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: err.issues[0].message } });
     }
     res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Registration failed' } });
   }
@@ -151,7 +151,7 @@ router.post('/:id/block', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { error } = await supabaseAdmin
       .from('blocked_users')
-      .insert({ blocker_id: req.user.id, blocked_id: req.params.id });
+      .insert({ blocker_id: req.user.id, blocked_id: req.params.id as string });
     if (error) throw error;
     res.json({ success: true });
   } catch (err: any) {
@@ -165,7 +165,7 @@ router.delete('/:id/block', requireAuth, async (req: AuthRequest, res) => {
     const { error } = await supabaseAdmin
       .from('blocked_users')
       .delete()
-      .match({ blocker_id: req.user.id, blocked_id: req.params.id });
+      .match({ blocker_id: req.user.id, blocked_id: req.params.id as string });
     if (error) throw error;
     res.json({ success: true });
   } catch (err: any) {
@@ -179,7 +179,7 @@ router.put('/contacts/:id', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { error } = await supabaseAdmin
       .from('user_contacts')
-      .upsert({ user_id: req.user.id, contact_id: req.params.id, custom_nickname, updated_at: new Date().toISOString() });
+      .upsert({ user_id: req.user.id, contact_id: req.params.id as string, custom_nickname, updated_at: new Date().toISOString() });
     if (error) throw error;
     res.json({ success: true });
   } catch (err: any) {
@@ -188,7 +188,7 @@ router.put('/contacts/:id', requireAuth, async (req: AuthRequest, res) => {
 });
 
 router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
-  const userId = req.params.id;
+  const userId = req.params.id as string;
   try {
     const { data, error } = await supabaseAdmin
       .from('users')
@@ -205,7 +205,7 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
 
 // Phase 16: Shared Media
 router.get('/:id/media', requireAuth, async (req: AuthRequest, res) => {
-  const targetUserId = req.params.id;
+  const targetUserId = req.params.id as string;
   try {
     // 1. Get all chats the current user is part of
     const { data: myChats } = await supabaseAdmin.from('chat_members').select('chat_id').eq('user_id', req.user.id);

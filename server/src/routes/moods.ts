@@ -74,7 +74,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
     const { error } = await supabaseAdmin
       .from('moods')
       .delete()
-      .match({ id: req.params.id, user_id: req.user.id });
+      .match({ id: req.params.id as string, user_id: req.user.id });
 
     if (error) throw error;
     res.json({ success: true });

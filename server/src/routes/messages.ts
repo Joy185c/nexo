@@ -53,7 +53,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 
     res.json({ success: true, data: message });
   } catch (err: any) {
-    if (err instanceof z.ZodError) return res.status(400).json({ success: false, error: { code: 'VALIDATION', message: err.errors[0].message } });
+    if (err instanceof z.ZodError) return res.status(400).json({ success: false, error: { code: 'VALIDATION', message: err.issues[0].message } });
     res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: err.message } });
   }
 });

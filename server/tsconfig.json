@@ -4,7 +4,7 @@
     "outDir": "./dist",
     "module": "CommonJS",
     "target": "esnext",
-    "moduleResolution": "node16",
+
     "esModuleInterop": true,
     "lib": ["esnext"],
     "types": ["node"],
@@ -14,5 +14,5 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*", "*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "../test-*.ts", "test-*.ts"]
 }

@@ -112,7 +112,7 @@ router.get('/users', requireAuth, requireAdmin, async (req: AuthRequest, res) =>
 // User Actions (ban, suspend, pause, active)
 router.post('/users/:id/action', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
   const { action } = req.body; // 'active', 'suspended', 'banned', 'paused'
-  const targetUserId = req.params.id;
+  const targetUserId = req.params.id as string;
 
   if (!['active', 'suspended', 'banned', 'paused'].includes(action)) {
     return res.status(400).json({ success: false, error: { message: 'Invalid action' } });
@@ -129,7 +129,7 @@ router.post('/users/:id/action', requireAuth, requireAdmin, async (req: AuthRequ
 
 // Reset Password
 router.post('/users/:id/reset-password', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
-  const targetUserId = req.params.id;
+  const targetUserId = req.params.id as string;
   const { newPassword } = req.body;
   if (!newPassword || newPassword.length < 6) {
     return res.status(400).json({ success: false, error: { message: 'Password must be at least 6 characters' } });
