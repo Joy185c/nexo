@@ -37,20 +37,24 @@ export function useLiveKitCall(
     setRoomName(generatedRoomName);
 
     try {
-      const res = await getLiveKitToken(generatedRoomName, myName);
-      if (res.token) {
+      const res = await getLiveKitToken(generatedRoomName, myName || 'User');
+      if (res && res.token) {
         setToken(res.token);
         // Alert the receiver
         sendSignalingMessage('livekit_offer', { 
           target_id: targetId, 
           caller_id: myId,
-          caller_name: myName, 
+          caller_name: myName || 'User', 
           type, 
           roomName: generatedRoomName 
         });
+      } else {
+        alert('Failed to get token (empty response from server)');
+        cleanup();
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('[LiveKit] Error getting token for initiation', e);
+      alert('LiveKit Call Error: ' + (e.message || String(e)));
       cleanup();
     }
   };
@@ -67,16 +71,20 @@ export function useLiveKitCall(
     setIsVideoOff(type === 'audio');
     
     try {
-      const res = await getLiveKitToken(roomName, myName);
-      if (res.token) {
+      const res = await getLiveKitToken(roomName, myName || 'User');
+      if (res && res.token) {
         setToken(res.token);
         setCallStatus('connected');
         // Tell caller we joined
         sendSignalingMessage('livekit_answer', { target_id: caller_id });
         setIncomingCallData(null);
+      } else {
+        alert('Failed to get token (empty response from server)');
+        cleanup();
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('[LiveKit] Error getting token for accept', e);
+      alert('LiveKit Call Error: ' + (e.message || String(e)));
       cleanup();
     }
   };
