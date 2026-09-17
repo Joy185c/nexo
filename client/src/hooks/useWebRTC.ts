@@ -114,8 +114,21 @@ export function useWebRTC(
       peerConnectionsRef.current[targetId].close();
     }
     
-    console.log(`[WebRTC] Using ICE Servers:`, dynamicIceServersRef.current);
-    const pc = new RTCPeerConnection(dynamicIceServersRef.current);
+    // Log ICE config without credentials for debugging
+    const iceConfig = dynamicIceServersRef.current;
+    const iceServerSummary = iceConfig.iceServers.map((s: any) => ({
+      urls: s.urls,
+      hasCredential: !!s.credential
+    }));
+    console.log(`[WebRTC] ICE Server count: ${iceConfig.iceServers.length}`);
+    console.log(`[WebRTC] ICE Servers (no credentials):`, JSON.stringify(iceServerSummary, null, 2));
+    const hasTurn = iceConfig.iceServers.some((s: any) => {
+      const url = Array.isArray(s.urls) ? s.urls[0] : s.urls;
+      return url && url.startsWith('turn:');
+    });
+    console.log(`[WebRTC] Has TURN server: ${hasTurn ? '✅ YES' : '❌ NO - relay candidates will NOT be generated!'} `);
+    
+    const pc = new RTCPeerConnection(iceConfig);
     peerConnectionsRef.current[targetId] = pc;
 
     if (stream) {
@@ -171,6 +184,17 @@ export function useWebRTC(
         console.log(`[WebRTC] ICE candidate gathering complete.`);
       }
     };
+
+    // ICE Candidate Error listener
+    pc.addEventListener('icecandidateerror', (event: any) => {
+      console.error(`[WebRTC] ❌ ICE Candidate Error:`, {
+        errorCode: event.errorCode,
+        errorText: event.errorText,
+        url: event.url,
+        address: event.address,
+        port: event.port,
+      });
+    });
 
     pc.onconnectionstatechange = () => {
       console.log(`\n--- [DIAGNOSTIC] STEP 4: ICE State ---`);
