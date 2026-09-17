@@ -7,23 +7,22 @@ const RemoteMedia = ({ stream, isAudioOnly, forceSpeaker }: { stream: MediaStrea
   useEffect(() => {
     if (ref.current && stream) {
       ref.current.srcObject = stream;
+      ref.current.play().catch(e => console.error("Autoplay prevented:", e));
     }
   }, [stream]);
 
   // Attempt to route audio if setSinkId is supported (desktop mostly)
   useEffect(() => {
     if (ref.current && typeof (ref.current as any).setSinkId === 'function') {
-      // In a real app we'd enumerate devices, here we just catch errors if not permitted
       (ref.current as any).setSinkId(forceSpeaker ? 'default' : '').catch(() => {});
     }
   }, [forceSpeaker]);
 
-  // Mobile browser hack: using a video tag often routes to speaker, audio tag to earpiece
-  if (isAudioOnly && !forceSpeaker) {
-    return <audio ref={ref as any} autoPlay playsInline style={{ display: 'none' }} />;
+  if (isAudioOnly) {
+    return <audio ref={ref as any} autoPlay playsInline />;
   }
 
-  return <video ref={ref} autoPlay playsInline style={isAudioOnly ? { position: 'absolute', width: 0, height: 0, opacity: 0 } : { width: '100%', height: '100%', objectFit: 'cover' }} />;
+  return <video ref={ref} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
 };
 
 export default function CallModal({

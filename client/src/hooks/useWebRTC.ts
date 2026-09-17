@@ -68,9 +68,14 @@ export function useWebRTC(
     });
 
     pc.ontrack = (event) => {
-      if (event.streams && event.streams[0]) {
-        setRemoteStreams(prev => ({ ...prev, [targetId]: event.streams[0] }));
-      }
+      const stream = event.streams && event.streams[0] ? event.streams[0] : new MediaStream([event.track]);
+      setRemoteStreams(prev => {
+        if (prev[targetId]) {
+          prev[targetId].addTrack(event.track);
+          return { ...prev };
+        }
+        return { ...prev, [targetId]: stream };
+      });
     };
 
     pc.onicecandidate = (event) => {
