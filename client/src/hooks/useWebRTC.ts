@@ -1,30 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { getTurnServers } from '../services/api';
 
-const ICE_SERVERS = {
+const STUN_ONLY = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { 
-      urls: 'turn:openrelay.metered.ca:80',
-      username: 'openrelayproject',
-      credential: 'openrelayproject'
-    },
-    { 
-      urls: 'turn:openrelay.metered.ca:443',
-      username: 'openrelayproject',
-      credential: 'openrelayproject'
-    },
-    { 
-      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-      username: 'openrelayproject',
-      credential: 'openrelayproject'
-    },
-    {
-      urls: 'turn:freestun.net:3478', // Sometimes functions as a free TURN
-      username: 'free',
-      credential: 'free'
-    }
   ]
 };
 
@@ -59,7 +39,8 @@ export function useWebRTC(
     _setIncomingCallData(data);
   };
 
-  const dynamicIceServersRef = useRef<any>(ICE_SERVERS);
+  const dynamicIceServersRef = useRef<any>(STUN_ONLY);
+  const turnReadyRef = useRef<boolean>(false);
 
   // Fetch dynamic TURN servers from Twilio (via our backend)
   useEffect(() => {
@@ -72,10 +53,32 @@ export function useWebRTC(
             ...res.data
           ]
         };
-        console.log('[WebRTC] Fetched dynamic Twilio TURN credentials successfully.');
+        turnReadyRef.current = true;
+        console.log('[WebRTC] ✅ Twilio TURN servers loaded successfully:', res.data.length, 'servers');
+      } else {
+        console.warn('[WebRTC] ⚠️ Twilio returned empty TURN servers, using STUN only');
+        turnReadyRef.current = true; // Allow calls even without TURN
       }
-    }).catch((e: any) => console.error('[WebRTC] Failed to fetch TURN servers:', e));
+    }).catch((e: any) => {
+      console.error('[WebRTC] ❌ Failed to fetch TURN servers:', e);
+      turnReadyRef.current = true; // Allow calls even if TURN fetch fails
+    });
   }, []);
+
+  // Wait for TURN servers to be fetched (max 3 seconds)
+  const waitForTurn = (): Promise<void> => {
+    return new Promise((resolve) => {
+      if (turnReadyRef.current) return resolve();
+      let attempts = 0;
+      const check = setInterval(() => {
+        attempts++;
+        if (turnReadyRef.current || attempts >= 30) {
+          clearInterval(check);
+          resolve();
+        }
+      }, 100);
+    });
+  };
 
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
@@ -251,6 +254,10 @@ export function useWebRTC(
     try {
       setIsCaller(true);
       setCallType(type);
+      // Wait for TURN credentials before starting the call
+      console.log('[WebRTC] Waiting for TURN servers...');
+      await waitForTurn();
+      console.log('[WebRTC] TURN servers ready. Starting call with config:', dynamicIceServersRef.current);
       await startLocalStream(type);
       setCallStatus(isGroup ? 'connected' : 'calling');
       
@@ -306,6 +313,8 @@ export function useWebRTC(
   const acceptCall = async () => {
     try {
       const type = incomingCallDataRef.current?.type || 'video';
+      // Wait for TURN credentials before accepting
+      await waitForTurn();
       await startLocalStream(type);
       setCallStatus('connected');
       
