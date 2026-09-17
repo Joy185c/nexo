@@ -18,6 +18,11 @@ const ICE_SERVERS = {
       urls: 'turn:openrelay.metered.ca:443?transport=tcp',
       username: 'openrelayproject',
       credential: 'openrelayproject'
+    },
+    {
+      urls: 'turn:freestun.net:3478', // Sometimes functions as a free TURN
+      username: 'free',
+      credential: 'free'
     }
   ]
 };
