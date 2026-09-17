@@ -83,11 +83,15 @@ export function useWebRTC(
     });
 
     pc.ontrack = (event) => {
-      const stream = event.streams && event.streams[0] ? event.streams[0] : new MediaStream([event.track]);
       setRemoteStreams(prev => {
+        const stream = event.streams && event.streams[0] ? event.streams[0] : new MediaStream([event.track]);
         if (prev[targetId]) {
-          prev[targetId].addTrack(event.track);
-          return { ...prev };
+          // Create a new stream to ensure React triggers re-render and re-assigns srcObject
+          const newStream = new MediaStream(prev[targetId].getTracks());
+          if (!newStream.getTracks().find(t => t.id === event.track.id)) {
+             newStream.addTrack(event.track);
+          }
+          return { ...prev, [targetId]: newStream };
         }
         return { ...prev, [targetId]: stream };
       });
