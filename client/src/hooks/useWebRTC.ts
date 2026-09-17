@@ -61,9 +61,17 @@ export function useWebRTC(
 
   const startLocalStream = async (type: 'video' | 'audio') => {
     try {
+      console.log(`\n--- [DIAGNOSTIC] STEP 1: Local Media ---`);
       console.log(`[WebRTC] Requesting local stream... type: ${type}`);
       const stream = await navigator.mediaDevices.getUserMedia({ video: type === 'video', audio: true });
-      console.log(`[WebRTC] Local stream obtained successfully. Tracks:`, stream.getTracks().map(t => `${t.kind} (${t.enabled ? 'enabled' : 'disabled'})`));
+      
+      const audioTrack = stream.getAudioTracks()[0];
+      const videoTrack = stream.getVideoTracks()[0];
+      
+      console.log(`[WebRTC] Local Audio: ${audioTrack ? `Exists (kind: ${audioTrack.kind}, enabled: ${audioTrack.enabled}, readyState: ${audioTrack.readyState}, muted: ${audioTrack.muted})` : 'MISSING'}`);
+      console.log(`[WebRTC] Local Video: ${videoTrack ? `Exists (kind: ${videoTrack.kind}, enabled: ${videoTrack.enabled}, readyState: ${videoTrack.readyState}, muted: ${videoTrack.muted})` : 'MISSING'}`);
+      console.log(`----------------------------------------\n`);
+      
       setLocalStream(stream);
       return stream;
     } catch (err) {
@@ -84,40 +92,53 @@ export function useWebRTC(
     peerConnectionsRef.current[targetId] = pc;
 
     if (stream) {
-      console.log(`[WebRTC] Adding local tracks to PeerConnection...`);
+      console.log(`\n--- [DIAGNOSTIC] STEP 2: PeerConnection Senders ---`);
       stream.getTracks().forEach((track) => {
-        console.log(`[WebRTC] Adding track: ${track.kind}`);
         pc.addTrack(track, stream);
       });
+      
+      const senders = pc.getSenders();
+      const audioSender = senders.find(s => s.track?.kind === 'audio');
+      const videoSender = senders.find(s => s.track?.kind === 'video');
+      console.log(`[WebRTC] Audio Sender: ${audioSender ? `Exists (track readyState: ${audioSender.track?.readyState})` : 'MISSING'}`);
+      console.log(`[WebRTC] Video Sender: ${videoSender ? `Exists (track readyState: ${videoSender.track?.readyState})` : 'MISSING'}`);
+      console.log(`---------------------------------------------------\n`);
     } else {
       console.warn(`[WebRTC] WARNING: No local stream provided to initPeerConnection!`);
     }
 
     pc.ontrack = (event) => {
-      console.log(`[WebRTC] ontrack event fired! Track kind: ${event.track.kind}, Streams length: ${event.streams?.length}`);
+      console.log(`\n--- [DIAGNOSTIC] STEP 5: Remote Track Arrived ---`);
+      console.log(`[WebRTC] ontrack fired! event.track.kind: ${event.track.kind}, readyState: ${event.track.readyState}`);
+      console.log(`[WebRTC] event.streams length: ${event.streams?.length}`);
       
       const stream = event.streams && event.streams[0];
+      if (stream) {
+        const audio = stream.getAudioTracks()[0];
+        const video = stream.getVideoTracks()[0];
+        console.log(`[WebRTC] Remote Stream Audio: ${audio ? 'Exists' : 'MISSING'}`);
+        console.log(`[WebRTC] Remote Stream Video: ${video ? 'Exists' : 'MISSING'}`);
+      }
+      console.log(`-------------------------------------------------\n`);
       
       setRemoteStreams(prev => {
         if (!stream) {
           console.log(`[WebRTC] Fallback: No event.streams[0], using manual MediaStream.`);
           if (prev[targetId]) {
             prev[targetId].addTrack(event.track);
-            // Trigger a re-render by returning a new object reference
             return { ...prev };
           }
           return { ...prev, [targetId]: new MediaStream([event.track]) };
         }
-        
-        console.log(`[WebRTC] Setting remote stream directly from event.streams[0].`);
-        // Use the exact stream object provided by the browser
         return { ...prev, [targetId]: stream };
       });
     };
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log(`[WebRTC] Generated ICE candidate: ${event.candidate.candidate.split(' ')[7]} (type)`);
+        const typeMatch = event.candidate.candidate.match(/typ\s+(\w+)/);
+        const candType = typeMatch ? typeMatch[1] : 'unknown';
+        console.log(`[WebRTC] Generated ICE candidate: ${candType}`);
         sendSignalingMessage('ice_candidate', { target_id: targetId, candidate: event.candidate });
       } else {
         console.log(`[WebRTC] ICE candidate gathering complete.`);
@@ -125,7 +146,17 @@ export function useWebRTC(
     };
 
     pc.onconnectionstatechange = () => {
-      console.log(`[WebRTC] Connection state changed to: ${pc.connectionState}`);
+      console.log(`\n--- [DIAGNOSTIC] STEP 4: ICE State ---`);
+      console.log(`[WebRTC] connectionState: ${pc.connectionState}`);
+      console.log(`[WebRTC] iceConnectionState: ${pc.iceConnectionState}`);
+      console.log(`[WebRTC] iceGatheringState: ${pc.iceGatheringState}`);
+      console.log(`--------------------------------------\n`);
+      
+      if (pc.connectionState === 'connected') {
+        // Start RTP Stats polling
+        setTimeout(() => runDiagnosticStats(pc), 5000);
+      }
+
       if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
         console.log(`[WebRTC] Connection lost/closed. Cleaning up streams.`);
         setRemoteStreams(prev => {
@@ -144,10 +175,39 @@ export function useWebRTC(
     };
 
     pc.oniceconnectionstatechange = () => {
-      console.log(`[WebRTC] ICE Connection state changed to: ${pc.iceConnectionState}`);
+      console.log(`[WebRTC] iceConnectionState changed to: ${pc.iceConnectionState}`);
     };
 
     return pc;
+  };
+
+  const runDiagnosticStats = async (pc: RTCPeerConnection) => {
+    try {
+      const stats = await pc.getStats();
+      let audioSent = 0, videoSent = 0;
+      let audioRecv = 0, videoRecv = 0;
+      
+      stats.forEach(report => {
+        if (report.type === 'outbound-rtp') {
+          if (report.kind === 'audio') audioSent = report.packetsSent;
+          if (report.kind === 'video') videoSent = report.packetsSent;
+        }
+        if (report.type === 'inbound-rtp') {
+          if (report.kind === 'audio') audioRecv = report.packetsReceived;
+          if (report.kind === 'video') videoRecv = report.packetsReceived;
+        }
+      });
+      
+      console.log(`\n=== FINAL REPORT: RTP STATISTICS (5s after connect) ===`);
+      console.log(`Audio packets sent: ${audioSent}`);
+      console.log(`Audio packets received: ${audioRecv}`);
+      console.log(`Video packets sent: ${videoSent}`);
+      console.log(`Video packets received: ${videoRecv}`);
+      console.log(`=======================================================\n`);
+      
+    } catch (e) {
+      console.error('[WebRTC] Failed to get stats', e);
+    }
   };
 
   // 1. Someone initiates a call
@@ -179,11 +239,17 @@ export function useWebRTC(
       }
       
       try {
-        console.log(`[WebRTC] Creating offer for: ${sender_id}`);
         const pc = initPeerConnection(sender_id, localStreamRef.current);
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        console.log(`[WebRTC] Offer created and set as local description. Sending offer.`);
+        
+        console.log(`\n--- [DIAGNOSTIC] STEP 3: SDP Inspection (OFFER) ---`);
+        const audioLines = offer.sdp?.match(/m=audio.*/g);
+        const videoLines = offer.sdp?.match(/m=video.*/g);
+        console.log(`[WebRTC] m=audio: ${audioLines ? audioLines[0] : 'MISSING'}`);
+        console.log(`[WebRTC] m=video: ${videoLines ? videoLines[0] : 'MISSING'}`);
+        console.log(`---------------------------------------------------\n`);
+        
         sendSignalingMessage('call_offer', { target_id: sender_id, offer, type });
       } catch (e) {
         console.error(`[WebRTC] Failed to create offer:`, e);
@@ -232,7 +298,14 @@ export function useWebRTC(
       console.log(`[WebRTC] Creating answer...`);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      console.log(`[WebRTC] Answer created and set as local description. Sending answer.`);
+      
+      console.log(`\n--- [DIAGNOSTIC] STEP 3: SDP Inspection (ANSWER) ---`);
+      const audioLines = answer.sdp?.match(/m=audio.*/g);
+      const videoLines = answer.sdp?.match(/m=video.*/g);
+      console.log(`[WebRTC] m=audio: ${audioLines ? audioLines[0] : 'MISSING'}`);
+      console.log(`[WebRTC] m=video: ${videoLines ? videoLines[0] : 'MISSING'}`);
+      console.log(`----------------------------------------------------\n`);
+      
       sendSignalingMessage('call_answer', { target_id: sender_id, answer });
     } catch (e) {
       console.error('[WebRTC] Failed to handle offer', e);
