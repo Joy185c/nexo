@@ -1,21 +1,25 @@
 import { useEffect, useState } from 'react';
-import { playRingtone, stopRingtone } from '../services/audioEngine';
+import { playRingtone, stopRingtone, playNotificationSound } from '../services/audioEngine';
 
 export function useNotifications() {
   const [permission, setPermission] = useState(Notification.permission);
   const [ringtoneId, setRingtoneId] = useState(localStorage.getItem('ringtone_id') || 'classic');
+  const [messageSoundId, setMessageSoundId] = useState(localStorage.getItem('message_sound_id') || 'tri-tone');
 
   useEffect(() => {
     const checkStorage = () => {
-      const storedId = localStorage.getItem('ringtone_id');
-      if (storedId && storedId !== ringtoneId) {
-        setRingtoneId(storedId);
-      }
+      const storedRingtone = localStorage.getItem('ringtone_id');
+      if (storedRingtone && storedRingtone !== ringtoneId) setRingtoneId(storedRingtone);
+      const storedMsgSound = localStorage.getItem('message_sound_id');
+      if (storedMsgSound && storedMsgSound !== messageSoundId) setMessageSoundId(storedMsgSound);
     };
-    // Custom event to listen for same-window storage changes since 'storage' event is cross-window
     window.addEventListener('ringtone_changed', checkStorage);
-    return () => window.removeEventListener('ringtone_changed', checkStorage);
-  }, [ringtoneId]);
+    window.addEventListener('message_sound_changed', checkStorage);
+    return () => {
+      window.removeEventListener('ringtone_changed', checkStorage);
+      window.removeEventListener('message_sound_changed', checkStorage);
+    };
+  }, [ringtoneId, messageSoundId]);
 
   const requestPermission = async () => {
     if (Notification.permission !== 'granted') {
@@ -25,12 +29,10 @@ export function useNotifications() {
   };
 
   const notify = (title: string, options?: NotificationOptions) => {
+    // Always play the message sound when a new message arrives
+    playNotificationSound(messageSoundId);
     if (permission === 'granted' && document.visibilityState === 'hidden') {
       new Notification(title, options);
-      playRingtone(ringtoneId, false);
-    } else if (document.visibilityState === 'hidden') {
-      // Even if no desktop notification permission, we can play the sound
-      playRingtone(ringtoneId, false);
     }
   };
 
@@ -42,5 +44,5 @@ export function useNotifications() {
     stopRingtone();
   };
 
-  return { permission, requestPermission, notify, startRing, stopRing, ringtoneId };
+  return { permission, requestPermission, notify, startRing, stopRing, ringtoneId, messageSoundId };
 }

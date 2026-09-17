@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { RINGTONES, playRingtone, stopRingtone } from '../services/audioEngine';
-import { X, Play, Square, Bell, Music, ChevronDown, ChevronUp, Image as ImageIcon, Check } from 'lucide-react';
+import { RINGTONES, MESSAGE_SOUNDS, playRingtone, stopRingtone, playNotificationSound } from '../services/audioEngine';
+import { X, Play, Square, Bell, Music, ChevronDown, ChevronUp, Image as ImageIcon, Check, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -13,7 +13,9 @@ const WALLPAPER_COLORS = [
 
 export default function SettingsModal({ onClose }: { onClose: () => void }) {
   const [selectedId, setSelectedId] = useState(localStorage.getItem('ringtone_id') || 'classic');
+  const [selectedMsgSound, setSelectedMsgSound] = useState(localStorage.getItem('message_sound_id') || 'tri-tone');
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [showMsgSounds, setShowMsgSounds] = useState(false);
   const [permission, setPermission] = useState(Notification.permission);
   const [theme, setTheme] = useState(localStorage.getItem('nexo_theme') || 'light');
   const [showRingtones, setShowRingtones] = useState(false);
@@ -69,6 +71,14 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
       const result = await Notification.requestPermission();
       setPermission(result);
     }
+  };
+
+  const handleMsgSoundSelect = (id: string) => {
+    setSelectedMsgSound(id);
+    localStorage.setItem('message_sound_id', id);
+    window.dispatchEvent(new Event('message_sound_changed'));
+    // Preview immediately
+    playNotificationSound(id);
   };
 
   const handleSelect = (id: string) => {
@@ -238,7 +248,51 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
             )}
           </div>
 
-          <div>
+          {/* Message Notification Sound */}
+          <div style={{ marginTop: '1rem' }}>
+            <div 
+              onClick={() => setShowMsgSounds(!showMsgSounds)}
+              style={{ 
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+                backgroundColor: 'var(--bg-tertiary)', padding: '1rem', borderRadius: 'var(--radius-md)', 
+                cursor: 'pointer', userSelect: 'none' 
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
+                <MessageSquare size={18} color="var(--accent-primary)" />
+                <span>Message Sound</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>({MESSAGE_SOUNDS.find(s => s.id === selectedMsgSound)?.name})</span>
+              </div>
+              {showMsgSounds ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </div>
+
+            {showMsgSounds && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem', padding: '0.5rem', backgroundColor: 'rgba(0,0,0,0.02)', borderRadius: 'var(--radius-md)' }}>
+                {MESSAGE_SOUNDS.map(s => (
+                  <div 
+                    key={s.id} 
+                    style={{ display: 'flex', alignItems: 'center', padding: '0.75rem 1rem', backgroundColor: selectedMsgSound === s.id ? 'var(--accent-muted)' : 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', border: selectedMsgSound === s.id ? '1px solid var(--accent-primary)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s' }} 
+                    onClick={() => handleMsgSoundSelect(s.id)}
+                  >
+                    <input type="radio" checked={selectedMsgSound === s.id} onChange={() => handleMsgSoundSelect(s.id)} style={{ marginRight: '1rem', accentColor: 'var(--accent-primary)' }} />
+                    <span style={{ flex: 1, fontWeight: selectedMsgSound === s.id ? 600 : 400, color: selectedMsgSound === s.id ? 'var(--accent-primary)' : 'var(--text-primary)' }}>{s.name}</span>
+                    {s.file && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); playNotificationSound(s.id); }} 
+                        className="btn-icon" 
+                        title="Preview"
+                      >
+                        <Play size={16} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Call Ringtone */}
+          <div style={{ marginTop: '1rem' }}>
             <div 
               onClick={() => setShowRingtones(!showRingtones)}
               style={{ 

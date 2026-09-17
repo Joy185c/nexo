@@ -2,6 +2,7 @@ let audioCtx: AudioContext | null = null;
 let currentOscillators: OscillatorNode[] = [];
 let loopTimeout: number | null = null;
 let isPlaying = false;
+let currentNotificationAudio: HTMLAudioElement | null = null;
 
 export const RINGTONES = [
   { id: 'iphone', name: 'iRingtone (Marimba)' },
@@ -15,6 +16,35 @@ export const RINGTONES = [
   { id: 'modern', name: 'Modern Minimal' },
   { id: 'synth', name: 'Synth Wave' }
 ];
+
+// Message notification sounds (MP3 from SoundDino)
+export const MESSAGE_SOUNDS = [
+  { id: 'ding', name: '🔔 Ding', file: '/sounds/ding.mp3' },
+  { id: 'glass', name: '🪟 Glass', file: '/sounds/glass.mp3' },
+  { id: 'tri-tone', name: '🎵 Tri-Tone (Classic iMessage)', file: '/sounds/tri-tone.mp3' },
+  { id: 'chime', name: '🔔 Notification Chime', file: '/sounds/chime.mp3' },
+  { id: 'bubble', name: '💬 Bubble Pop', file: '/sounds/bubble.mp3' },
+  { id: 'twitter', name: '🐦 Twitter Bird', file: '/sounds/twitter.mp3' },
+  { id: 'mail', name: '✉️ Mail Notice', file: '/sounds/mail.mp3' },
+  { id: 'soft', name: '🎶 Soft Tone', file: '/sounds/soft.mp3' },
+  { id: 'none', name: '🔇 No Sound', file: '' },
+];
+
+export const playNotificationSound = (soundId: string) => {
+  const sound = MESSAGE_SOUNDS.find(s => s.id === soundId);
+  if (!sound || !sound.file) return;
+  try {
+    if (currentNotificationAudio) {
+      currentNotificationAudio.pause();
+      currentNotificationAudio.currentTime = 0;
+    }
+    currentNotificationAudio = new Audio(sound.file);
+    currentNotificationAudio.volume = 1.0;
+    currentNotificationAudio.play().catch(e => console.warn('Notification sound failed:', e));
+  } catch (e) {
+    console.warn('Could not play notification sound:', e);
+  }
+};
 
 const initAudio = () => {
   if (!audioCtx) {
