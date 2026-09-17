@@ -15,6 +15,7 @@ export function useWebRTC(
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
   
   const peerConnectionsRef = useRef<Record<string, RTCPeerConnection>>({});
+  const iceCandidateQueueRef = useRef<Record<string, RTCIceCandidateInit[]>>({});
   
   const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'ringing' | 'connected'>('idle');
   const [callType, setCallType] = useState<'video' | 'audio'>('video');
@@ -137,6 +138,15 @@ export function useWebRTC(
     try {
       const pc = initPeerConnection(sender_id, localStream);
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      
+      // Process queued ICE candidates
+      if (iceCandidateQueueRef.current[sender_id]) {
+        for (const candidate of iceCandidateQueueRef.current[sender_id]) {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.error('Queued ICE error:', e));
+        }
+        delete iceCandidateQueueRef.current[sender_id];
+      }
+
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       sendSignalingMessage('call_answer', { target_id: sender_id, answer });
@@ -151,6 +161,15 @@ export function useWebRTC(
     if (!pc) return;
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      
+      // Process queued ICE candidates
+      if (iceCandidateQueueRef.current[sender_id]) {
+        for (const candidate of iceCandidateQueueRef.current[sender_id]) {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.error('Queued ICE error:', e));
+        }
+        delete iceCandidateQueueRef.current[sender_id];
+      }
+
       if (!callStartTimeRef.current) callStartTimeRef.current = Date.now();
     } catch (e) {
       console.error('Failed to set remote description on answer', e);
@@ -160,7 +179,13 @@ export function useWebRTC(
   // 6. ICE candidates exchange
   const handleReceiveIceCandidate = async (candidate: RTCIceCandidateInit, sender_id: string) => {
     const pc = peerConnectionsRef.current[sender_id];
-    if (!pc) return;
+    if (!pc || !pc.remoteDescription) {
+      if (!iceCandidateQueueRef.current[sender_id]) {
+        iceCandidateQueueRef.current[sender_id] = [];
+      }
+      iceCandidateQueueRef.current[sender_id].push(candidate);
+      return;
+    }
     try {
       await pc.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (e) {
@@ -228,6 +253,7 @@ export function useWebRTC(
 
     Object.values(peerConnectionsRef.current).forEach(pc => pc.close());
     peerConnectionsRef.current = {};
+    iceCandidateQueueRef.current = {};
     
     if (localStream) {
       localStream.getTracks().forEach(track => track.stop());
