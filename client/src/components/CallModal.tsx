@@ -7,18 +7,16 @@ const RemoteMedia = ({ stream, isAudioOnly, forceSpeaker }: { stream: MediaStrea
   useEffect(() => {
     console.log(`[WebRTC-UI] RemoteMedia useEffect triggered. Stream ID: ${stream?.id}, Tracks: ${stream?.getTracks().length}`);
     if (ref.current && stream) {
-      console.log(`[WebRTC-UI] Assigning srcObject to video/audio element.`);
-      ref.current.srcObject = stream;
+      if (ref.current.srcObject !== stream) {
+        console.log(`[WebRTC-UI] Assigning srcObject to video/audio element.`);
+        ref.current.srcObject = stream;
+      }
       ref.current.onloadedmetadata = () => {
         if (ref.current) {
           console.log(`[WebRTC-UI] loadedmetadata event fired. Video dimensions: ${(ref.current as HTMLVideoElement).videoWidth}x${(ref.current as HTMLVideoElement).videoHeight}`);
+          // Let the autoPlay attribute handle playback. We only log here.
         }
       };
-      ref.current.play().then(() => {
-        console.log(`[WebRTC-UI] play() successful.`);
-      }).catch(e => {
-        console.error("[WebRTC-UI] Autoplay prevented:", e);
-      });
     }
   }, [stream]);
 
