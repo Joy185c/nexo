@@ -79,9 +79,11 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
       };
     }));
 
-    formattedChats.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    // Filter out chats that have no messages AND were explicitly deleted by the user
+    const finalChats = formattedChats.filter(c => !(c.last_message === null && memberMap.get(c.id)));
+    finalChats.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
-    res.json({ success: true, data: formattedChats });
+    res.json({ success: true, data: finalChats });
   } catch (err: any) {
     res.status(500).json({ success: false, error: { code: 'FETCH_ERROR', message: err.message } });
   }
