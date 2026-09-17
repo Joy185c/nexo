@@ -70,7 +70,7 @@
 
 .app-container {
   display: flex;
-  height: 100dvh; /* use dynamic viewport height for mobile browsers */
+  height: 100%;
   width: 100vw;
   max-width: 1920px;
   margin: 0 auto;
@@ -82,12 +82,15 @@
 
 body {
   font-family: var(--font-sans);
-  background-color: var(--bg-tertiary); /* Contrast against max-width container on huge screens */
+  background-color: var(--bg-tertiary);
   color: var(--text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 @media (min-width: 769px) {
