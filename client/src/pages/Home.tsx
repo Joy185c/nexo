@@ -29,7 +29,7 @@ export default function Home() {
   const displayOpacity = chatSpecificOpacity ? parseInt(chatSpecificOpacity, 10) : wallpaperOpacity;
 
   return (
-    <div className={`app-container ${activeChat ? 'chat-active' : ''}`}>
+    <div className={`app-container ${!activeChat ? 'with-nav-padding' : ''}`}>
       {/* Sidebar Area (Desktop/Tablet: Fluid Width, Mobile: 100% when no chat active) */}
       <div 
         className={`sidebar-container ${activeChat ? 'mobile-hidden' : ''}`} 

@@ -298,7 +298,7 @@ input, textarea {
     height: 100%;
   }
 
-  .app-container:not(.chat-active) {
+  .with-nav-padding {
     padding-bottom: calc(60px + env(safe-area-inset-bottom, 12px));
   }
 }
