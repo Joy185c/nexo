@@ -98,3 +98,7 @@ export const getTurnServers = async () => {
   console.log('[API] Raw TURN response:', res);
   return res;
 };
+
+// LiveKit
+export const getLiveKitToken = async (roomName: string, participantName: string) => 
+  apiFetch('/livekit/token', { method: 'POST', body: JSON.stringify({ roomName, participantName }) });

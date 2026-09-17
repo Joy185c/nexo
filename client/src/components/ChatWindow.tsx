@@ -4,9 +4,11 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Send, Check, CheckCheck, Paperclip, Video, Phone, Reply, Pin, Trash2, Smile, X, Forward, ArrowLeft, Mic, Square, User } from 'lucide-react';
 import { useWebRTC } from '../hooks/useWebRTC';
+import { useLiveKitCall } from '../hooks/useLiveKitCall';
 import { useNotifications } from '../hooks/useNotifications';
 import { loadPrivateKey, decryptSymmetricKey, decryptMessageText, generateSymmetricKey, importPublicKey, encryptSymmetricKey, encryptMessageText } from '../lib/crypto';
 import CallModal from './CallModal';
+import LiveKitCallUI from './LiveKitCallUI';
 import UserProfile from './UserProfile';
 import Lightbox from './Lightbox';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
@@ -110,6 +112,16 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
     }
   });
 
+  const livekit = useLiveKitCall((event, payload) => {
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event,
+        payload: { ...payload, sender_id: profile?.id, caller_name: profile?.username }
+      });
+    }
+  });
+
   useEffect(() => {
     if (webrtc.callStatus === 'ringing') {
       notifications.startRing();
@@ -199,6 +211,26 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
         .on('broadcast', { event: 'ice_candidate' }, (payload) => {
           if (payload.payload.target_id === profile?.id) {
             webrtc.handleReceiveIceCandidate(payload.payload.candidate, payload.payload.sender_id);
+          }
+        })
+        .on('broadcast', { event: 'livekit_offer' }, (payload) => {
+          if (payload.payload.target_id === profile?.id) {
+            livekit.handleReceiveOffer(payload.payload);
+          }
+        })
+        .on('broadcast', { event: 'livekit_answer' }, (payload) => {
+          if (payload.payload.target_id === profile?.id) {
+            livekit.handleReceiveAnswer(payload.payload);
+          }
+        })
+        .on('broadcast', { event: 'livekit_reject' }, (payload) => {
+          if (payload.payload.target_id === profile?.id) {
+            livekit.handleReceiveReject(payload.payload);
+          }
+        })
+        .on('broadcast', { event: 'livekit_end' }, (payload) => {
+          if (payload.payload.target_id === profile?.id) {
+            livekit.handleReceiveEnd(payload.payload);
           }
         })
         .on('broadcast', { event: 'peer_leave' }, (payload) => {
@@ -516,6 +548,50 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
         onDecline={() => webrtc.cleanup()}
         onEndCall={() => webrtc.endCall()}
       />
+
+      {/* LiveKit Calling / Ringing Overlay */}
+      {(livekit.callStatus === 'ringing' || livekit.callStatus === 'calling') && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-var-bg-secondary p-8 rounded-2xl max-w-md w-full text-center shadow-2xl border border-var-border-color">
+            <h2 className="text-2xl font-bold mb-2">
+              {livekit.callStatus === 'ringing' ? 'Incoming LiveKit Call' : 'Calling (LiveKit)...'}
+            </h2>
+            <p className="text-var-text-secondary mb-8">
+              {livekit.callStatus === 'ringing' 
+                ? `${livekit.incomingCallData?.caller_name} is calling you` 
+                : 'Waiting for answer...'}
+            </p>
+            <div className="flex justify-center gap-4">
+              {livekit.callStatus === 'ringing' && (
+                <button 
+                  onClick={() => livekit.acceptCall(profile?.username || 'Unknown')} 
+                  className="bg-green-500 hover:bg-green-600 text-white rounded-full p-4 transition-transform hover:scale-105"
+                >
+                  <Phone size={28} />
+                </button>
+              )}
+              <button 
+                onClick={() => livekit.callStatus === 'ringing' ? livekit.rejectCall() : livekit.endCall(chat.members?.find((m: any) => m.user_id !== profile?.id)?.user_id)} 
+                className="bg-red-500 hover:bg-red-600 text-white rounded-full p-4 transition-transform hover:scale-105"
+              >
+                <Phone size={28} style={{ transform: 'rotate(135deg)' }} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LiveKit Connected UI */}
+      {livekit.callStatus === 'connected' && livekit.token && livekit.roomName && (
+        <LiveKitCallUI 
+          token={livekit.token} 
+          roomName={livekit.roomName} 
+          serverUrl={import.meta.env.VITE_LIVEKIT_URL} 
+          type={livekit.callType} 
+          onDisconnect={() => livekit.endCall(chat.members?.find((m: any) => m.user_id !== profile?.id)?.user_id)}
+          targetName={chat.is_group ? getChatName() : chat.members?.find((m: any) => m.user_id !== profile?.id)?.user?.username}
+        />
+      )}
       
       {viewUserProfileId && <UserProfile userId={viewUserProfileId} chatId={chat.id} onClose={() => setViewUserProfileId(null)} />}
       
@@ -601,11 +677,36 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
             {/* Subtle Online Status could go here if we fetched it for the header */}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.25rem' }}>
-          <button onClick={() => webrtc.initiateCall(profile?.username || 'Unknown', 'audio', chat.is_group)} className="btn-icon" style={{ color: 'var(--accent-primary)' }}>
+        <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+          {/* LiveKit Prototype Buttons */}
+          <div className="flex gap-1 mr-4 border-r border-var-border-color pr-4">
+            <button 
+              title="LiveKit Audio Call"
+              onClick={() => {
+                const targetId = chat.members?.find((m: any) => m.user_id !== profile?.id)?.user_id;
+                if (targetId) livekit.initiateCall(targetId, getChatName(), 'audio', profile?.id || '', profile?.username || '');
+              }} 
+              className="btn-icon" style={{ color: '#8b5cf6' }}
+            >
+              <Phone size={20} />
+            </button>
+            <button 
+              title="LiveKit Video Call"
+              onClick={() => {
+                const targetId = chat.members?.find((m: any) => m.user_id !== profile?.id)?.user_id;
+                if (targetId) livekit.initiateCall(targetId, getChatName(), 'video', profile?.id || '', profile?.username || '');
+              }} 
+              className="btn-icon" style={{ color: '#8b5cf6' }}
+            >
+              <Video size={20} />
+            </button>
+          </div>
+
+          {/* Existing WebRTC Buttons */}
+          <button title="WebRTC Audio Call" onClick={() => webrtc.initiateCall(profile?.username || 'Unknown', 'audio', chat.is_group)} className="btn-icon" style={{ color: 'var(--accent-primary)' }}>
             <Phone size={20} />
           </button>
-          <button onClick={() => webrtc.initiateCall(profile?.username || 'Unknown', 'video', chat.is_group)} className="btn-icon" style={{ color: 'var(--accent-primary)' }}>
+          <button title="WebRTC Video Call" onClick={() => webrtc.initiateCall(profile?.username || 'Unknown', 'video', chat.is_group)} className="btn-icon" style={{ color: 'var(--accent-primary)' }}>
             <Video size={20} />
           </button>
         </div>
