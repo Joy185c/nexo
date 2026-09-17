@@ -840,7 +840,7 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
         <div ref={messagesEndRef} />
       </div>
 
-      <div style={{ backgroundColor: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)', zIndex: 10, flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <div style={{ backgroundColor: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)', zIndex: 10, flexShrink: 0 }}>
         {/* Reply Indicator Bar */}
         {replyTo && (
           <div style={{ padding: '0.75rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-tertiary)' }}>

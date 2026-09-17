@@ -70,13 +70,13 @@
 
 .app-container {
   display: flex;
-  height: 100%;
-  width: 100vw;
+  position: absolute;
+  inset: 0;
+  width: 100%;
   max-width: 1920px;
   margin: 0 auto;
   overflow: hidden;
   background-color: var(--bg-primary);
-  position: relative;
   box-shadow: var(--shadow-lg);
 }
 
@@ -88,8 +88,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
-  height: 100vh;
-  height: 100dvh;
+  position: fixed;
+  inset: 0;
   overflow: hidden;
 }
 
