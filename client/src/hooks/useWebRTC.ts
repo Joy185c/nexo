@@ -141,12 +141,12 @@ export function useWebRTC(
   // 3. User accepts the incoming call prompt
   const acceptCall = async () => {
     try {
-      const type = incomingCallData?.type || 'video';
+      const type = incomingCallDataRef.current?.type || 'video';
       await startLocalStream(type);
       setCallStatus('connected');
       
       // Tell the person who invited us (and others) that we joined
-      sendSignalingMessage('peer_join', { caller_name: incomingCallData?.caller_name, type, is_group: incomingCallData?.is_group });
+      sendSignalingMessage('peer_join', { caller_name: incomingCallDataRef.current?.caller_name, type, is_group: incomingCallDataRef.current?.is_group });
       setIncomingCallData(null);
     } catch (err) {
       console.error('Failed to accept call', err);
