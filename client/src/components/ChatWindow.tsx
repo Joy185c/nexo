@@ -505,7 +505,8 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
           alignItems: 'center', 
           zIndex: 10,
           cursor: chat.is_group ? 'pointer' : 'default',
-          transition: 'background 0.2s'
+          transition: 'background 0.2s',
+          flexShrink: 0
         }}
         onMouseEnter={e => {
           if (chat.is_group) e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)';
@@ -571,7 +572,7 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
       {pinnedMessages.length > 0 && (
         <div 
           onClick={() => scrollToMessage(pinnedMessages[0].id)}
-          style={{ padding: '0.5rem 1rem', backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+          style={{ padding: '0.5rem 1rem', backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', flexShrink: 0 }}
         >
           <Pin size={14} color="var(--accent-primary)" />
           <span style={{ fontWeight: 500, flex: 1 }} className="truncate">Pinned: {pinnedMessages[0].content || 'Media'}</span>
@@ -581,7 +582,7 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
       <div 
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}
+        style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem', overscrollBehaviorY: 'none' }}
       >
         {loadingMore && <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Loading older messages...</div>}
         
@@ -839,7 +840,7 @@ export default function ChatWindow({ chat, onBack }: { chat: any, onBack?: () =>
         <div ref={messagesEndRef} />
       </div>
 
-      <div style={{ backgroundColor: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)', zIndex: 10 }}>
+      <div style={{ backgroundColor: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)', zIndex: 10, flexShrink: 0 }}>
         {/* Reply Indicator Bar */}
         {replyTo && (
           <div style={{ padding: '0.75rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-tertiary)' }}>
